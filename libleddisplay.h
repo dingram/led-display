@@ -51,6 +51,8 @@ int ldisplay_showTime(unsigned int time, int style);
 
 void ldisplay_setBrightness(unsigned char brightness);
 
+int ldisplay_showChars(const char chars[4], char offset);
+
 // Cleanup function to release the interface.
 // MUST be called before exiting
 void ldisplay_cleanup();

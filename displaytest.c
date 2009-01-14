@@ -144,6 +144,51 @@ int main(int argc, char *argv[]) {
     }
     */
 
+    if (0) {
+      char *message[] = {
+        "     ",
+        "    I",
+        "   In",
+        "  Ini",
+        " Init",
+        "Initi",
+        "nitia",
+        "itial",
+        "tiali",
+        "ialis",
+        "alisi",
+        "lisin",
+        "ising",
+        "sing.",
+        "ing..",
+        "ng...",
+        "g... ",
+        "...  ",
+        "..   ",
+        ".    ",
+        "    #",
+        "   #@",
+        "  #@$",
+        " #@$%",
+        "#@$%&",
+        "@$%&=",
+        "$%&= ",
+        "%&=  ",
+        "&=   ",
+        "=    ",
+        "     "
+      };
+
+      int m=0;
+      for (m=0; m<31; m++) {
+        ldisplay_showChars(message[m],  6); usleep(100000);
+        ldisplay_showChars(message[m],  5); usleep(100000);
+        ldisplay_showChars(message[m],  4); usleep(100000);
+        ldisplay_showChars(message[m],  3); usleep(100000);
+        ldisplay_showChars(message[m],  2); usleep(100000);
+      }
+    }
+
 #if 0
     ldisplay_setBrightness(LDISPLAY_BRIGHT);
     for (i=10; i>=0; --i) {

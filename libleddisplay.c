@@ -22,6 +22,7 @@
 
 // fonts
 #include "led_font_time.h"
+#include "led_font_std.h"
 
 // USB Vendor and Product IDs (obtained via lsusb)
 #define DEVICE_VID 0x1d34
@@ -202,6 +203,18 @@ void ldisplay_setBrightness(unsigned char brightness) {
   if (brightness>2)
     brightness=2;
   _brightness = brightness;
+}
+
+int ldisplay_showChars(const char chars[5], char offset) {
+  uint32_t buffer[7] = {0};
+
+  _overlay(font_std_fixed_ascii[chars[0]], buffer, offset - 21);
+  _overlay(font_std_fixed_ascii[chars[1]], buffer, offset - 16);
+  _overlay(font_std_fixed_ascii[chars[2]], buffer, offset - 11);
+  _overlay(font_std_fixed_ascii[chars[3]], buffer, offset - 6);
+  //_overlay(font_std_fixed_ascii[chars[4]], buffer, offset);
+
+  return ldisplay_setDisplay(buffer);
 }
 
 // clean up after finishing with the device
