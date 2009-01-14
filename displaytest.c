@@ -18,6 +18,7 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <string.h>
+#include <time.h>
 #include "libleddisplay.h"
 
 #include "binconst.h"
@@ -44,7 +45,7 @@ int main(int argc, char *argv[]) {
   rprintf("  http://www.dmi.me.uk/code/linux/leddisplay/      \n\n");
 
   // initialise device
-	if (init() != SUCCESS) {
+	if (ldisplay_init() != SUCCESS) {
     fprintf(stderr, "\033[1;31mDevice failed to initialise!\033[0m\n");
     return 1;
   }
@@ -57,20 +58,10 @@ int main(int argc, char *argv[]) {
     usleep(10000);
 
   // reset it to a known initial state
-  reset();
+  ldisplay_reset();
 
   if (argc<2) {
-    uint32_t i;
-
-    uint32_t pattern[7] = {
-      B32(0, 00000, 00000000, 00000000), // 0x000000, // 000000000000000000000
-      B32(0, 00000, 00001110, 01111101), // 0x0007ba, // 000000000000000000000
-      B32(0, 00001, 10000001, 00001000), // 0x018108, // 000000000000000000000
-      B32(0, 00110, 01000110, 00001000), // 0x064308, // 000000000000000000000
-      B32(0, 01000, 00100001, 00010000), // 0x082090, // 000000000000000000000
-      B32(0, 11111, 11100001, 00010000), // 0x1fe090, // 100000000000000000000
-      B32(0, 00000, 00001111, 00100000)  // 0x000720  // 000000000000000000000
-    };
+    int32_t i;
 
     uint32_t frame[10][7] = {
       {
@@ -141,36 +132,6 @@ int main(int argc, char *argv[]) {
         B24(00100, 10010010, 01001001),
         B24(01001, 00100100, 10010010),
         B24(10010, 01001001, 00100100)
-      },
-
-      {
-        B24(10001, 10000001, 10000001),
-        B24(10001, 10000001, 10000001),
-        B24(10001, 10000001, 10000001),
-        B24(10001, 10000001, 10000001),
-        B24(10001, 10000001, 10000001),
-        B24(10001, 10000001, 10000001),
-        B24(10001, 10000001, 10000001)
-      },
-
-      {
-        B24(01110, 01111110, 01111110),
-        B24(01110, 01111110, 01111110),
-        B24(01110, 01111110, 01111110),
-        B24(01110, 01111110, 01111110),
-        B24(01110, 01111110, 01111110),
-        B24(01110, 01111110, 01111110),
-        B24(01110, 01111110, 01111110)
-      },
-
-      {
-        B24(10001, 10000001, 10000001),
-        B24(10001, 10000001, 10000001),
-        B24(10001, 10000001, 10000001),
-        B24(10001, 10000001, 10000001),
-        B24(10001, 10000001, 10000001),
-        B24(10001, 10000001, 10000001),
-        B24(10001, 10000001, 10000001)
       }
 
     };
@@ -181,26 +142,59 @@ int main(int argc, char *argv[]) {
       setAll(1);
       usleep(400000);
     }
-
-    while (1) {
-      setDisplay(pattern);
-      usleep(400000);
-    }
     */
 
+#if 0
+    ldisplay_setBrightness(LDISPLAY_BRIGHT);
+    for (i=10; i>=0; --i) {
+      ldisplay_showTime(i, (i/10)%2);
+      usleep(400000);
+      ldisplay_showTime(i, (i/10)%2);
+      usleep(400000);
+    }
+
+    int j=2;
+
+    ldisplay_setBrightness(LDISPLAY_MEDIUM);
     printf("Animate...\n");
+    while (j) {
+      for (i=0; i<6; i++) {
+        ldisplay_setDisplay(frame[i]);
+        usleep(150000);
+        /*
+        setDisplay(frame[i]);
+        usleep(400000);
+        */
+      }
+      --j;
+    }
+#endif
+
+    ldisplay_setBrightness(LDISPLAY_DIM);
+    printf("Current time (dim)\n");
+    int oldtime_int=0;
     while (1) {
-      for (i=0; i<10; i++) {
-        setDisplay(frame[i]);
-        usleep(400000);
-        setDisplay(frame[i]);
-        usleep(400000);
+      time_t t = time(NULL);
+      struct tm *curTime = localtime(&t);
+      int curtime_int = (100*curTime->tm_hour) + curTime->tm_min;
+      // check time again every few seconds
+      for (i=0; i<5; ++i) {
+        if (oldtime_int!=curtime_int)
+          ldisplay_setBrightness(LDISPLAY_BRIGHT);
+        ldisplay_showTime(curtime_int, 0);
+        usleep(100000);
+        if (oldtime_int!=curtime_int) {
+          oldtime_int = curtime_int;
+          ldisplay_setBrightness(LDISPLAY_DIM);
+        }
+        ldisplay_showTime(curtime_int, 0);
+        usleep(300000);
       }
     }
 
     usleep(500000);
 
-    reset();
+    ldisplay_reset();
 
   } else {
     /*
@@ -224,7 +218,7 @@ int main(int argc, char *argv[]) {
 
   rprintf("Cleaning up...\n");
 
-	cleanup();
+	ldisplay_cleanup();
 
   rprintf("Done.\n");
 

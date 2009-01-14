@@ -23,19 +23,36 @@
 // Generic return codes
 #define SUCCESS 0
 #define ERR_INIT_NODEV 1
+#define ERR_BAD_ARGS   2
+
+#define LDISPLAY_DIM    0
+#define LDISPLAY_MEDIUM 1
+#define LDISPLAY_BRIGHT 2
+
+typedef struct { uint32_t glyph[7]; unsigned char width; } ldisplay_var_char_t;
+typedef uint32_t ldisplay_fixed_char_t[7];
+typedef union { ldisplay_var_char_t var; ldisplay_fixed_char_t fixed; } ldisplay_char_t;
+
+typedef struct { ldisplay_fixed_char_t *glyphs; unsigned char width; } ldisplay_fixed_font_t;
+typedef struct { ldisplay_var_char_t   *glyphs; unsigned char width; } ldisplay_var_font_t;
+typedef union { ldisplay_var_font_t var; ldisplay_fixed_font_t fixed; } ldisplay_font_t;
 
 // Initialisation function to set up the connection to the device.
 // MUST be called before any others.
 // Returns 0 on success, 1 if device not found.
-int init();
+int ldisplay_init();
 
-int reset();
+int ldisplay_reset();
 
-int setAll(int val);
-int setDisplay(uint32_t data[7]);
+int ldisplay_setAll(int val);
+int ldisplay_setDisplay(uint32_t data[7]);
+
+int ldisplay_showTime(unsigned int time, int style);
+
+void ldisplay_setBrightness(unsigned char brightness);
 
 // Cleanup function to release the interface.
 // MUST be called before exiting
-void cleanup();
+void ldisplay_cleanup();
 
 #endif /* defined LIBLEDDISPLAY_H */

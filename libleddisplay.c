@@ -20,19 +20,25 @@
 #include <stdio.h>
 #include "libleddisplay.h"
 
+// fonts
+#include "led_font_time.h"
+
 // USB Vendor and Product IDs (obtained via lsusb)
 #define DEVICE_VID 0x1d34
 #define DEVICE_PID 0x0013
 
 // USB device info
-usb_dev_handle *udev;
+static usb_dev_handle *udev;
+
+// display brightness: 0-2, with 2 being brightest
+static unsigned char _brightness = LDISPLAY_BRIGHT;
 
 /******************************************************************************/
 
 // internal USB functions
 
 // send a control message to the device
-int _control_msg(char message[], int length) {
+static inline int _control_msg(char message[], int length) {
   // details from sniffing USB traffic:
   //   request type: 0x21
   //   request: 0x09
@@ -43,7 +49,7 @@ int _control_msg(char message[], int length) {
 
 /*******************************************************************************/
 
-static inline uint32_t swapbits( uint32_t v )
+static inline uint32_t _swapbits( uint32_t v )
 {
   const uint32_t h_mask_1 = 0xaaaaaaaaUL;
   const uint32_t l_mask_1 = 0x55555555UL;
@@ -59,48 +65,48 @@ static inline uint32_t swapbits( uint32_t v )
   return ( ( v & h_mask_4 ) >> 4 ) | ( ( v & l_mask_4 ) << 4 );
 }
 
+static inline void _overlay(const uint32_t *foreground, uint32_t background[7], char xOff) {
+  int i;
+  if (xOff<0) {
+    xOff = -xOff;
+    for (i=0; i<7; ++i) {
+      background[i] |= (foreground[i] << xOff);
+    }
+  } else {
+    for (i=0; i<7; ++i) {
+      background[i] |= (foreground[i] >> xOff);
+    }
+  }
+}
+
 /*******************************************************************************/
 
 
-// attempt to open the device
+// attempt to open the first device matching the VID/PID we have
 // assignes a usb_dev_handle to the device to the udev global var
-int init()
-{
-	int buscount;
-	int devcount;
+int ldisplay_init() {
   struct usb_bus *bus;
-	char dname[32]={0};
   struct usb_device *dev;
-
-	usb_dev_handle *tdev;
-
-	tdev = NULL;
 
 	usb_init();
 	usb_set_debug(0);
 	usb_find_busses();
 	usb_find_devices();
 
-	buscount = 0;
 	// scan the available busses
 	for (bus = usb_get_busses(); bus; bus = bus->next) {
-		devcount = 0;
 		// scan the devices on this bus
 		for (dev = bus->devices; dev; dev = dev->next) {
-
-			/*
-			 * Try to open the device.
-			 */
-			tdev = usb_open(dev);
+			// Try to open the device.
+      usb_dev_handle *tdev = usb_open(dev);
 
 			if (tdev) {
-				if ((dev->descriptor.idVendor == DEVICE_VID) &&
-					(dev->descriptor.idProduct == DEVICE_PID)) {
-
+				if ((dev->descriptor.idVendor == DEVICE_VID) && (dev->descriptor.idProduct == DEVICE_PID)) {
 					// save the device
 					udev=tdev;
 
 					// detach from the kernel if we need to
+          char dname[32]={0};
 					int retval = usb_get_driver_np(udev, 0, dname, 31);
 					if (retval == 0 && strcmp(dname, "usbhid") == 0) {
 						usb_detach_kernel_driver_np(udev, 0);
@@ -110,28 +116,28 @@ int init()
 					usleep(100);
 					usb_claim_interface(udev, 0);
 
+          // done
 					return SUCCESS;
 				} else {
 					usb_close(tdev);
 				}
 			}
 		}
-		buscount++;
 	}
 
 	return ERR_INIT_NODEV;
 }
 
-int reset() {
-  return setAll(0);
+int ldisplay_reset() {
+  return ldisplay_setAll(0);
 }
 
-int setAll(int val) {
-  char msg[] = { 0x00, 0x02, 0x00, 0x00, 0x07, 0x00, 0x00, 0x07 };
+int ldisplay_setAll(int val) {
+  char msg[] = { _brightness, 0x02, 0x00, 0x00, 0x07, 0x00, 0x00, 0x07 };
 
   if (!val) {
     int i;
-    for (i=2; i<8; i++)
+    for (i=2; i<8; ++i)
       msg[i] |= 0xff;
   }
   for (msg[1]=0; msg[1]<7; msg[1]+=2) {
@@ -141,8 +147,8 @@ int setAll(int val) {
   return SUCCESS;
 }
 
-int setDisplay(uint32_t data[7]) {
-  unsigned char msg[] = { 0x00, 0x00, 0x00, 0x00, 0x07, 0x00, 0x00, 0x07 };
+int ldisplay_setDisplay(uint32_t data[7]) {
+  unsigned char msg[] = { _brightness, 0x00, 0x00, 0x00, 0x07, 0x00, 0x00, 0x07 };
 
   for (msg[1]=0; msg[1]<7; msg[1]+=2) {
     int i=0;
@@ -158,8 +164,8 @@ int setDisplay(uint32_t data[7]) {
       msg[6] = 0;
       msg[7] = 0;
     }
-    for (i=2; i<8; i++) {
-      msg[i] = swapbits(msg[i]);
+    for (i=2; i<8; ++i) {
+      msg[i] = _swapbits(msg[i]);
     }
 
     _control_msg((char*)msg, 8);
@@ -168,37 +174,44 @@ int setDisplay(uint32_t data[7]) {
   return SUCCESS;
 }
 
-/*
-// move cannon in given direction
-int move(char direction) {
-  char msg[] = { (direction & 0x0f), 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+int ldisplay_showTime(unsigned int time, int style) {
+  if (time>9999 || style<0 || style>1) {
+    return ERR_BAD_ARGS;
+  }
 
-  // naughty, naughty: can't move up and down at the same time!
-  if ((direction & 0x03) == 0x03) msg[0] &= 0xfc;
+  uint32_t buffer[7] = {0};
 
-  // naughty, naughty: can't move left and right at the same time!
-  if ((direction & 0x0c) == 0x0c) msg[0] &= 0xf3;
+  _overlay(time_font_colon, buffer, 0);
 
-  // move cannon
-  _control_msg(msg, 8);
+  if (style) {
+    _overlay(time_segment_font_digits[(time     )%10], buffer,   0);
+    _overlay(time_segment_font_digits[(time/10  )%10], buffer, - 5);
+    _overlay(time_segment_font_digits[(time/100 )%10], buffer, -12);
+    _overlay(time_segment_font_digits[(time/1000)%10], buffer, -17);
+  } else {
+    _overlay(time_font_digits[(time     )%10], buffer,   0);
+    _overlay(time_font_digits[(time/10  )%10], buffer, - 5);
+    _overlay(time_font_digits[(time/100 )%10], buffer, -12);
+    _overlay(time_font_digits[(time/1000)%10], buffer, -17);
+  }
 
-  return SUCCESS;
+  return ldisplay_setDisplay(buffer);
 }
 
-// fire the cannon
-int fire() {
-  char msg[]  = { 0x10, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
-  _control_msg(msg, 8);
-  return SUCCESS;
+void ldisplay_setBrightness(unsigned char brightness) {
+  if (brightness>2)
+    brightness=2;
+  _brightness = brightness;
 }
-*/
 
 // clean up after finishing with the device
-void cleanup() {
+void ldisplay_cleanup() {
+	if (!udev)
+    return; // nothing to do
+
 	// release the interface
 	usb_release_interface(udev,0);
 
 	// close the device
-	if (udev)
-		usb_close(udev);
+  usb_close(udev);
 }
