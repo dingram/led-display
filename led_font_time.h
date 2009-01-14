@@ -62,7 +62,7 @@ static const ldisplay_fixed_char_t time_font_digits[10] = {
     B8(1110),
     B8(0001),
     B8(0001),
-    B8(1110),
+    B8(0110),
     B8(0001),
     B8(0001),
     B8(1110)
