@@ -66,18 +66,82 @@ static inline uint32_t _swapbits( uint32_t v )
   return ( ( v & h_mask_4 ) >> 4 ) | ( ( v & l_mask_4 ) << 4 );
 }
 
-static inline void _overlay(const uint32_t *foreground, uint32_t background[7], char xOff) {
+static inline void _overlay(const uint32_t *foreground, uint32_t background[7], char xOff, char yOff) {
   int i;
+  // index bounds checking
+  if (yOff<-6 || yOff>6 || xOff<-20 || xOff>20) return;
+
   if (xOff<0) {
     xOff = -xOff;
-    for (i=0; i<7; ++i) {
-      background[i] |= (foreground[i] << xOff);
+    for (i= (yOff>0) ? yOff : 0; i<7; ++i) {
+      if (i-yOff < 0 || i-yOff>6) continue;
+      background[i] |= (uint32_t)(foreground[i-yOff] << xOff);
     }
   } else {
-    for (i=0; i<7; ++i) {
-      background[i] |= (foreground[i] >> xOff);
+    for (i= (yOff>0) ? yOff : 0; i<7; ++i) {
+      if (i-yOff < 0 || i-yOff>6) continue;
+      background[i] |= (uint32_t)(foreground[i-yOff] >> xOff);
     }
   }
+}
+
+void ldisplay__test__overlay() {
+  uint32_t buffer[7] = {};
+
+  CLEAR_BUFFER(buffer);
+  ldisplay_dumpBuffer(buffer);
+
+  uint32_t pat1[7] = {
+    B8(10),
+    B8(10),
+    B8(11),
+    0,
+    0,
+    0,
+    0
+  };
+
+  uint32_t pat2[7] = {
+    B8(111),
+    B8(100),
+    0,
+    0,
+    0,
+    0,
+    0
+  };
+
+  _overlay(pat1, buffer, 0, 0);
+  ldisplay_dumpBuffer(buffer);
+
+  _overlay(pat1, buffer, -5, 0);
+  ldisplay_dumpBuffer(buffer);
+
+  _overlay(pat1, buffer, -10, 0);
+  ldisplay_dumpBuffer(buffer);
+
+  _overlay(pat2, buffer, -15, 0);
+  ldisplay_dumpBuffer(buffer);
+
+  _overlay(pat2, buffer, -20, 0);
+  ldisplay_dumpBuffer(buffer);
+
+  _overlay(pat2, buffer, -40, 0);
+  ldisplay_dumpBuffer(buffer);
+
+  _overlay(pat2, buffer, 0, 4);
+  ldisplay_dumpBuffer(buffer);
+
+  _overlay(pat1, buffer, -10, 5);
+  ldisplay_dumpBuffer(buffer);
+
+  _overlay(pat1, buffer, -3, -1);
+  ldisplay_dumpBuffer(buffer);
+
+  _overlay(pat1, buffer, -8, -2);
+  ldisplay_dumpBuffer(buffer);
+
+  return;
 }
 
 /*******************************************************************************/
@@ -182,18 +246,18 @@ int ldisplay_showTime(unsigned int time, int style) {
 
   uint32_t buffer[7] = {0};
 
-  _overlay(time_font_colon, buffer, 0);
+  _overlay(time_font_colon, buffer, 0, 0);
 
   if (style) {
-    _overlay(time_segment_font_digits[(time     )%10], buffer,   0);
-    _overlay(time_segment_font_digits[(time/10  )%10], buffer, - 5);
-    _overlay(time_segment_font_digits[(time/100 )%10], buffer, -12);
-    _overlay(time_segment_font_digits[(time/1000)%10], buffer, -17);
+    _overlay(time_segment_font_digits[(time     )%10], buffer,   0, 0);
+    _overlay(time_segment_font_digits[(time/10  )%10], buffer, - 5, 0);
+    _overlay(time_segment_font_digits[(time/100 )%10], buffer, -12, 0);
+    _overlay(time_segment_font_digits[(time/1000)%10], buffer, -17, 0);
   } else {
-    _overlay(time_font_digits[(time     )%10], buffer,   0);
-    _overlay(time_font_digits[(time/10  )%10], buffer, - 5);
-    _overlay(time_font_digits[(time/100 )%10], buffer, -12);
-    _overlay(time_font_digits[(time/1000)%10], buffer, -17);
+    _overlay(time_font_digits[(time     )%10], buffer,   0, 0);
+    _overlay(time_font_digits[(time/10  )%10], buffer, - 5, 0);
+    _overlay(time_font_digits[(time/100 )%10], buffer, -12, 0);
+    _overlay(time_font_digits[(time/1000)%10], buffer, -17, 0);
   }
 
   return ldisplay_setDisplay(buffer);
@@ -208,10 +272,10 @@ void ldisplay_setBrightness(unsigned char brightness) {
 int ldisplay_showChars(const char chars[5], char offset) {
   uint32_t buffer[7] = {0};
 
-  _overlay(font_std_fixed_ascii[chars[0]], buffer, offset - 21);
-  _overlay(font_std_fixed_ascii[chars[1]], buffer, offset - 16);
-  _overlay(font_std_fixed_ascii[chars[2]], buffer, offset - 11);
-  _overlay(font_std_fixed_ascii[chars[3]], buffer, offset - 6);
+  _overlay(font_std_fixed_ascii[chars[0]], buffer, offset - 21, 0);
+  _overlay(font_std_fixed_ascii[chars[1]], buffer, offset - 16, 0);
+  _overlay(font_std_fixed_ascii[chars[2]], buffer, offset - 11, 0);
+  _overlay(font_std_fixed_ascii[chars[3]], buffer, offset -  6, 0);
   //_overlay(font_std_fixed_ascii[chars[4]], buffer, offset);
 
   return ldisplay_setDisplay(buffer);
@@ -227,4 +291,17 @@ void ldisplay_cleanup() {
 
 	// close the device
   usb_close(udev);
+}
+
+void ldisplay_dumpBuffer(uint32_t data[7]) {
+  int i, j;
+
+  printf("\n");
+  for (i=0; i<7; ++i) {
+    for (j=21; j>=0; --j) {
+      printf( ((data[i] >> j) & 0x1) ? "#" : "-" );
+    }
+    printf("\n");
+  }
+  printf("\n");
 }

@@ -144,7 +144,12 @@ int main(int argc, char *argv[]) {
     }
     */
 
-    if (0) {
+    if (1) {
+      ldisplay__test__overlay();
+      exit(0);
+    }
+
+    if (1) {
       char *message[] = {
         "     ",
         "    I",
@@ -215,25 +220,27 @@ int main(int argc, char *argv[]) {
     }
 #endif
 
-    ldisplay_setBrightness(LDISPLAY_DIM);
-    printf("Current time (dim)\n");
-    int oldtime_int=0;
-    while (1) {
-      time_t t = time(NULL);
-      struct tm *curTime = localtime(&t);
-      int curtime_int = (100*curTime->tm_hour) + curTime->tm_min;
-      // check time again every few seconds
-      for (i=0; i<5; ++i) {
-        if (oldtime_int!=curtime_int)
-          ldisplay_setBrightness(LDISPLAY_BRIGHT);
-        ldisplay_showTime(curtime_int, 0);
-        usleep(100000);
-        if (oldtime_int!=curtime_int) {
-          oldtime_int = curtime_int;
-          ldisplay_setBrightness(LDISPLAY_DIM);
+    if (0) {
+      ldisplay_setBrightness(LDISPLAY_DIM);
+      printf("Current time (dim)\n");
+      int oldtime_int=0;
+      while (1) {
+        time_t t = time(NULL);
+        struct tm *curTime = localtime(&t);
+        int curtime_int = (100*curTime->tm_hour) + curTime->tm_min;
+        // check time again every few seconds
+        for (i=0; i<5; ++i) {
+          if (oldtime_int!=curtime_int)
+            ldisplay_setBrightness(LDISPLAY_BRIGHT);
+          ldisplay_showTime(curtime_int, 0);
+          usleep(100000);
+          if (oldtime_int!=curtime_int) {
+            oldtime_int = curtime_int;
+            ldisplay_setBrightness(LDISPLAY_DIM);
+          }
+          ldisplay_showTime(curtime_int, 0);
+          usleep(300000);
         }
-        ldisplay_showTime(curtime_int, 0);
-        usleep(300000);
       }
     }
 

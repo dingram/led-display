@@ -57,4 +57,11 @@ int ldisplay_showChars(const char chars[4], char offset);
 // MUST be called before exiting
 void ldisplay_cleanup();
 
+void ldisplay_dumpBuffer(uint32_t data[7]);
+
+void ldisplay__test__overlay();
+
+
+#define CLEAR_BUFFER(b) memset((b), 0, 7*sizeof(uint32_t));
+
 #endif /* defined LIBLEDDISPLAY_H */
