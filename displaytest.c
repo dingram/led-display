@@ -144,9 +144,8 @@ int main(int argc, char *argv[]) {
     }
     */
 
-    if (1) {
+    if (0) {
       ldisplay__test__overlay();
-      exit(0);
     }
 
     if (1) {
