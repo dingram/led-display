@@ -18,6 +18,9 @@ clean:
 .PHONY: test
 test: displaytest
 
+clock: libleddisplay.o clock.o
+	$(CC) clock.o -L. -lleddisplay -lusb -o clock
+
 displaytest: libleddisplay.o displaytest.o
 	$(CC) displaytest.o -L. -lleddisplay -lusb -o displaytest
 
