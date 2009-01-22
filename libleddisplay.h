@@ -29,6 +29,8 @@
 #define LDISPLAY_MEDIUM 1
 #define LDISPLAY_BRIGHT 2
 
+typedef uint32_t ldisplay_buffer_t[7];
+
 typedef struct { uint32_t glyph[7]; unsigned char width; } ldisplay_var_char_t;
 typedef uint32_t ldisplay_fixed_char_t[7];
 typedef union { ldisplay_var_char_t var; ldisplay_fixed_char_t fixed; } ldisplay_char_t;

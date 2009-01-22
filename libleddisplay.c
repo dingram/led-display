@@ -198,7 +198,7 @@ int ldisplay_reset() {
 }
 
 int ldisplay_setAll(int val) {
-  char msg[] = { _brightness, 0x02, 0x00, 0x00, 0x07, 0x00, 0x00, 0x07 };
+  char msg[] = { _brightness, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
 
   if (!val) {
     int i;
@@ -213,7 +213,7 @@ int ldisplay_setAll(int val) {
 }
 
 int ldisplay_setDisplay(uint32_t data[7]) {
-  unsigned char msg[] = { _brightness, 0x00, 0x00, 0x00, 0x07, 0x00, 0x00, 0x07 };
+  unsigned char msg[] = { _brightness, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
 
   for (msg[1]=0; msg[1]<7; msg[1]+=2) {
     int i=0;

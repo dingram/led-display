@@ -21,6 +21,9 @@ test: displaytest
 clock: libleddisplay.o clock.o
 	$(CC) clock.o -L. -lleddisplay -lusb -o clock
 
+glyph: libleddisplay.o glyph.o
+	$(CC) glyph.o -L. -lleddisplay -lusb -o glyph
+
 displaytest: libleddisplay.o displaytest.o
 	$(CC) displaytest.o -L. -lleddisplay -lusb -o displaytest
 
