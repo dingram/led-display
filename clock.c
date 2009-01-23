@@ -21,6 +21,7 @@
 #include <string.h>
 #include <time.h>
 #include <signal.h>
+#include <getopt.h>
 #include "libleddisplay.h"
 
 static void sighandler(int sig) {
@@ -31,7 +32,52 @@ static void sighandler(int sig) {
   exit(EXIT_SUCCESS);
 }
 
+static void usage(char *progname) {
+  printf("Usage:\n");
+  printf("    %s [--no-totally-unnecessary-brightness-flicker]\n\n", progname);
+  printf("  -s, --no-totally-unnecessary-brightness-flicker  Disable brightness flicker\n");
+  printf("                                                   when updating the time.\n");
+  printf("  --help                                           Display this screen.\n");
+  printf("\n");
+  exit(EXIT_SUCCESS);
+}
+
 int main(int argc, char *argv[]) {
+  // parse arguments
+  int opt_flicker = 1;
+
+  {
+    struct option long_options[] = {
+      { "no-totally-unnecessary-brightness-flicker", 0, &opt_flicker, 0},
+      { "disable-totally-unnecessary-brightness-flicker", 0, &opt_flicker, 0},
+      { "help", 0, 0, 0},
+      { 0, 0, 0, 0 }
+    };
+
+    while (1) {
+      int opt_index=0;
+      int c = getopt_long(argc, argv, "s", long_options, &opt_index);
+
+      if (c == -1)
+        break;
+
+      switch (c) {
+        case 0:
+          if (opt_index==2) {
+            usage(argv[0]);
+          }
+          break;
+        case 's':
+          opt_flicker=0;
+          break;
+        case '?':
+          exit(EXIT_FAILURE);
+        default:
+          printf("??? getopt returned character code 0x%x ???\n", c);
+      }
+    }
+  }
+
   // no output buffering please
 	setbuf(stdout,0);
 
@@ -66,7 +112,7 @@ int main(int argc, char *argv[]) {
     int i=0;
 
     for (i=0; i<5; ++i) {
-      if (oldtime_int!=curtime_int)
+      if (opt_flicker && oldtime_int!=curtime_int)
         ldisplay_setBrightness(LDISPLAY_BRIGHT);
       ldisplay_showTime(curtime_int, 0);
       usleep(100000);

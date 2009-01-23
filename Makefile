@@ -9,7 +9,7 @@ OFILES = $(CFILES:.c=.o)
 CFLAGS = -Wall -fpic
 
 .PHONY: all
-all: libleddisplay
+all: libleddisplay displaytest glyph clock
 
 .PHONY: clean
 clean:
