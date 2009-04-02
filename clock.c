@@ -45,6 +45,7 @@ static void usage(char *progname) {
 int main(int argc, char *argv[]) {
   // parse arguments
   int opt_flicker = 1;
+  int ret;
 
   {
     struct option long_options[] = {
@@ -100,7 +101,11 @@ int main(int argc, char *argv[]) {
   sigaction(SIGINT, &sigact, NULL);
 
   // reset it to a known initial state
-  ldisplay_reset();
+  if (ret = ldisplay_reset()) {
+    fprintf(stderr, "\033[1;31mDevice failed to reset: %d\033[0m\n", ret);
+    ldisplay_cleanup();
+    return 1;
+  }
 
   ldisplay_setBrightness(LDISPLAY_DIM);
   int oldtime_int=0;
@@ -114,13 +119,23 @@ int main(int argc, char *argv[]) {
     for (i=0; i<5; ++i) {
       if (opt_flicker && oldtime_int!=curtime_int)
         ldisplay_setBrightness(LDISPLAY_BRIGHT);
-      ldisplay_showTime(curtime_int, 0);
+      ret = ldisplay_showTime(curtime_int, 0);
+      if (ret) {
+        fprintf(stderr, "\033[1;31mDevice failed to respond: %d\033[0m\n", ret);
+        ldisplay_cleanup();
+        return 1;
+      }
       usleep(100000);
       if (oldtime_int!=curtime_int) {
         oldtime_int = curtime_int;
         ldisplay_setBrightness(LDISPLAY_DIM);
       }
-      ldisplay_showTime(curtime_int, 0);
+      ret = ldisplay_showTime(curtime_int, 0);
+      if (ret) {
+        fprintf(stderr, "\033[1;31mDevice failed to respond: %d\033[0m\n", ret);
+        ldisplay_cleanup();
+        return 1;
+      }
       usleep(300000);
     }
   }

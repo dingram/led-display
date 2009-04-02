@@ -206,7 +206,10 @@ int ldisplay_setAll(int val) {
       msg[i] |= 0xff;
   }
   for (msg[1]=0; msg[1]<7; msg[1]+=2) {
-    _control_msg(msg, 8);
+    int ret;
+    if (ret = _control_msg(msg, 8) < 0) {
+      return ret;
+    }
   }
 
   return SUCCESS;
@@ -233,7 +236,10 @@ int ldisplay_setDisplay(uint32_t data[7]) {
       msg[i] = _swapbits(msg[i]);
     }
 
-    _control_msg((char*)msg, 8);
+    int ret;
+    if (ret = _control_msg((char*)msg, 8) < 0) {
+      return ret;
+    }
   }
 
   return SUCCESS;
