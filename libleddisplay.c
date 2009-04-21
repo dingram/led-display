@@ -85,65 +85,6 @@ static inline void _overlay(const uint32_t *foreground, uint32_t background[7], 
   }
 }
 
-void ldisplay__test__overlay() {
-  uint32_t buffer[7] = {};
-
-  CLEAR_BUFFER(buffer);
-  ldisplay_dumpBuffer(buffer);
-
-  uint32_t pat1[7] = {
-    B8(10),
-    B8(10),
-    B8(11),
-    0,
-    0,
-    0,
-    0
-  };
-
-  uint32_t pat2[7] = {
-    B8(111),
-    B8(100),
-    0,
-    0,
-    0,
-    0,
-    0
-  };
-
-  _overlay(pat1, buffer, 0, 0);
-  ldisplay_dumpBuffer(buffer);
-
-  _overlay(pat1, buffer, -5, 0);
-  ldisplay_dumpBuffer(buffer);
-
-  _overlay(pat1, buffer, -10, 0);
-  ldisplay_dumpBuffer(buffer);
-
-  _overlay(pat2, buffer, -15, 0);
-  ldisplay_dumpBuffer(buffer);
-
-  _overlay(pat2, buffer, -20, 0);
-  ldisplay_dumpBuffer(buffer);
-
-  _overlay(pat2, buffer, -40, 0);
-  ldisplay_dumpBuffer(buffer);
-
-  _overlay(pat2, buffer, 0, 4);
-  ldisplay_dumpBuffer(buffer);
-
-  _overlay(pat1, buffer, -10, 5);
-  ldisplay_dumpBuffer(buffer);
-
-  _overlay(pat1, buffer, -3, -1);
-  ldisplay_dumpBuffer(buffer);
-
-  _overlay(pat1, buffer, -8, -2);
-  ldisplay_dumpBuffer(buffer);
-
-  return;
-}
-
 /*******************************************************************************/
 
 

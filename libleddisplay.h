@@ -61,8 +61,6 @@ void ldisplay_cleanup();
 
 void ldisplay_dumpBuffer(uint32_t data[7]);
 
-void ldisplay__test__overlay();
-
 
 #define CLEAR_BUFFER(b) memset((b), 0, 7*sizeof(uint32_t));
 
