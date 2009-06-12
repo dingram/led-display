@@ -148,7 +148,7 @@ int ldisplay_setAll(int val) {
   }
   for (msg[1]=0; msg[1]<7; msg[1]+=2) {
     int ret;
-    if (ret = _control_msg(msg, 8) < 0) {
+    if ((ret = _control_msg(msg, 8)) < 0) {
       return ret;
     }
   }
@@ -178,7 +178,7 @@ int ldisplay_setDisplay(uint32_t data[7]) {
     }
 
     int ret;
-    if (ret = _control_msg((char*)msg, 8) < 0) {
+    if ((ret = _control_msg((char*)msg, 8)) < 0) {
       return ret;
     }
   }
@@ -216,14 +216,14 @@ void ldisplay_setBrightness(unsigned char brightness) {
   _brightness = brightness;
 }
 
-int ldisplay_showChars(const char chars[5], char offset) {
+int ldisplay_showChars(const char chars[4], char offset) {
   uint32_t buffer[7] = {0};
 
-  _overlay(font_std_fixed_ascii[chars[0]], buffer, offset - 21, 0);
-  _overlay(font_std_fixed_ascii[chars[1]], buffer, offset - 16, 0);
-  _overlay(font_std_fixed_ascii[chars[2]], buffer, offset - 11, 0);
-  _overlay(font_std_fixed_ascii[chars[3]], buffer, offset -  6, 0);
-  //_overlay(font_std_fixed_ascii[chars[4]], buffer, offset);
+  _overlay(font_std_fixed_ascii[(unsigned)chars[0]], buffer, offset - 21, 0);
+  _overlay(font_std_fixed_ascii[(unsigned)chars[1]], buffer, offset - 16, 0);
+  _overlay(font_std_fixed_ascii[(unsigned)chars[2]], buffer, offset - 11, 0);
+  _overlay(font_std_fixed_ascii[(unsigned)chars[3]], buffer, offset -  6, 0);
+  //_overlay(font_std_fixed_ascii[(unsigned)chars[4]], buffer, offset);
 
   return ldisplay_setDisplay(buffer);
 }

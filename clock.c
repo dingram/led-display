@@ -101,7 +101,7 @@ int main(int argc, char *argv[]) {
   sigaction(SIGINT, &sigact, NULL);
 
   // reset it to a known initial state
-  if (ret = ldisplay_reset()) {
+  if ((ret = ldisplay_reset())) {
     fprintf(stderr, "\033[1;31mDevice failed to reset: %d\033[0m\n", ret);
     ldisplay_cleanup();
     return 1;

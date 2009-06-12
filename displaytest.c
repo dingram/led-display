@@ -63,6 +63,7 @@ int main(int argc, char *argv[]) {
   if (argc<2) {
     int32_t i;
 
+#if 0
     uint32_t frame[10][7] = {
       {
         B24(10010, 01001001, 00100100),
@@ -135,6 +136,7 @@ int main(int argc, char *argv[]) {
       }
 
     };
+#endif
 
     /*
     printf("All on...\n");
