@@ -1,0 +1,7 @@
+/clock
+/glyph
+/displaytest
+/lib*.so*
+.*.sw?
+*.o
+*.a
