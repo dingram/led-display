@@ -189,16 +189,16 @@ int main(int argc, char *argv[]) {
       int m=0;
       ldisplay_buffer_t buffer = {0};
       for (m=0; m<31; m++) {
-
-        ldisplay_drawChars(buffer, message[m],  6); ldisplay_set(100, buffer, LDISPLAY_NOCHANGE, myq);
-        ldisplay_drawChars(buffer, message[m],  5); ldisplay_set(100, buffer, LDISPLAY_NOCHANGE, myq);
-        ldisplay_drawChars(buffer, message[m],  4); ldisplay_set(100, buffer, LDISPLAY_NOCHANGE, myq);
-        ldisplay_drawChars(buffer, message[m],  3); ldisplay_set(100, buffer, LDISPLAY_NOCHANGE, myq);
-        ldisplay_drawChars(buffer, message[m],  2); ldisplay_set(100, buffer, LDISPLAY_NOCHANGE, myq);
+        ldisplay_drawChars(buffer, message[m],  6); ldisplay_set(60, buffer, LDISPLAY_NOCHANGE, myq);
+        ldisplay_drawChars(buffer, message[m],  5); ldisplay_set(60, buffer, LDISPLAY_NOCHANGE, myq);
+        ldisplay_drawChars(buffer, message[m],  4); ldisplay_set(60, buffer, LDISPLAY_NOCHANGE, myq);
+        ldisplay_drawChars(buffer, message[m],  3); ldisplay_set(60, buffer, LDISPLAY_NOCHANGE, myq);
+        ldisplay_drawChars(buffer, message[m],  2); ldisplay_set(60, buffer, LDISPLAY_NOCHANGE, myq);
       }
 
 
-      ldisplay_dump_queue(myq);
+      //ldisplay_dump_queue(myq);
+      ldisplay_queue_concat(NULL, myq);
       ldisplay_queue_free(myq);
     }
 
@@ -252,8 +252,6 @@ int main(int argc, char *argv[]) {
     }
 #endif
 
-    usleep(500000);
-
     //ldisplay_reset();
 
   } else {
@@ -275,6 +273,9 @@ int main(int argc, char *argv[]) {
     }
     */
   }
+
+  // wait for animation to complete
+  ldisplay_wait_for_anim();
 
   rprintf("Cleaning up...\n");
 
