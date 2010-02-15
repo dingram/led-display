@@ -6,7 +6,7 @@ OFILES = $(CFILES:.c=.o)
 # CFLAGS = -fpic
 # For creating a library:
 # CFLAGS = -Wall -shared -W1,-soname,libleddisplay.so.1 -o libleddisplay.so.1.0.1 $(OFILES)
-CFLAGS = -Wall -fpic
+CFLAGS = -Wall -fpic -lpthread -lrt
 
 .PHONY: all
 all: libleddisplay displaytest glyph clock
@@ -19,13 +19,13 @@ clean:
 test: displaytest
 
 clock: libleddisplay.o clock.o
-	$(CC) clock.o -L. -lleddisplay -lusb -o clock
+	$(CC) clock.o -L. -lleddisplay -lusb -lpthread -lrt -o clock
 
 glyph: libleddisplay.o glyph.o
-	$(CC) glyph.o -L. -lleddisplay -lusb -o glyph
+	$(CC) glyph.o -L. -lleddisplay -lusb -lpthread -lrt -o glyph
 
 displaytest: libleddisplay.o displaytest.o
-	$(CC) displaytest.o -L. -lleddisplay -lusb -o displaytest
+	$(CC) displaytest.o -L. -lleddisplay -lusb -lpthread -lrt -o displaytest
 
 libleddisplay: $(OFILES)
 	ar rcs libleddisplay.a libleddisplay.o

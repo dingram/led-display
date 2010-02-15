@@ -18,16 +18,19 @@
 #ifndef LIBLEDDISPLAY_H
 #define LIBLEDDISPLAY_H
 
+#define NODEV
+
 #include <stdint.h>
 
 // Generic return codes
-#define SUCCESS 0
-#define ERR_INIT_NODEV 1
-#define ERR_BAD_ARGS   2
+#define SUCCESS         0
+#define ERR_INIT_NODEV  1
+#define ERR_BAD_ARGS    2
 
-#define LDISPLAY_DIM    0
-#define LDISPLAY_MEDIUM 1
-#define LDISPLAY_BRIGHT 2
+#define LDISPLAY_DIM       0
+#define LDISPLAY_MEDIUM    1
+#define LDISPLAY_BRIGHT    2
+#define LDISPLAY_NOCHANGE  3
 
 typedef uint32_t ldisplay_buffer_t[7];
 
@@ -39,21 +42,55 @@ typedef struct { ldisplay_fixed_char_t *glyphs; unsigned char width; } ldisplay_
 typedef struct { ldisplay_var_char_t   *glyphs; unsigned char width; } ldisplay_var_font_t;
 typedef union { ldisplay_var_font_t var; ldisplay_fixed_font_t fixed; } ldisplay_font_t;
 
+struct ldisplay_animq;
+struct ldisplay_frame {
+  uint16_t duration; // ms
+  unsigned char type;
+  unsigned char brightness;
+  union {
+    ldisplay_buffer_t buffer;
+    struct {
+      struct ldisplay_animq *queue;
+      uint8_t repeat_count;
+    } loop;
+  } data;
+  struct ldisplay_frame *next;
+};
+
+struct ldisplay_animq {
+  struct ldisplay_frame *first;
+  struct ldisplay_frame *last;
+};
+
+typedef struct ldisplay_animq ldisplay_animq_t;
+typedef struct ldisplay_frame ldisplay_frame_t;
+
+#define LDISPLAY_NOOP         0
+#define LDISPLAY_INVERT       1
+#define LDISPLAY_CLEAR        2
+#define LDISPLAY_SET          3
+#define LDISPLAY_LOOP         4
+#define LDISPLAY_BRK_IF_LAST  5
+
 // Initialisation function to set up the connection to the device.
 // MUST be called before any others.
 // Returns 0 on success, 1 if device not found.
 int ldisplay_init();
 
-int ldisplay_reset();
+void ldisplay_reset(uint16_t duration);
 
-int ldisplay_setAll(int val);
-int ldisplay_setDisplay(uint32_t data[7]);
+void ldisplay_invert(uint16_t duration);
 
-int ldisplay_showTime(unsigned int time, int style);
+void ldisplay_set(uint16_t duration, ldisplay_buffer_t buffer, unsigned char brightness);
 
-void ldisplay_setBrightness(unsigned char brightness);
 
-int ldisplay_showChars(const char chars[4], char offset);
+//void ldisplay_setBrightness(unsigned char brightness);
+
+int ldisplay_drawTime(ldisplay_buffer_t buffer, unsigned int time, int style);
+//int ldisplay_showTime(unsigned int time, int style);
+
+int ldisplay_drawChars(ldisplay_buffer_t buffer, const char chars[4], char offset);
+//int ldisplay_showChars(const char chars[4], char offset);
 
 // Cleanup function to release the interface.
 // MUST be called before exiting
@@ -63,5 +100,8 @@ void ldisplay_dumpBuffer(uint32_t data[7]);
 
 
 #define CLEAR_BUFFER(b) memset((b), 0, 7*sizeof(uint32_t));
+
+// 300ms max frame length
+#define MAX_FRAME_LENGTH_MS 300
 
 #endif /* defined LIBLEDDISPLAY_H */

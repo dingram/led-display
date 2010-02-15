@@ -18,6 +18,10 @@
 #include <usb.h>
 #include <string.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <pthread.h>
+#include <time.h>
+#include <errno.h>
 #include "libleddisplay.h"
 
 // fonts
@@ -33,6 +37,22 @@ static usb_dev_handle *udev;
 
 // display brightness: 0-2, with 2 being brightest
 static unsigned char _brightness = LDISPLAY_BRIGHT;
+
+// current buffer
+static ldisplay_buffer_t _buffer;
+
+// animation thread
+static pthread_t anim_thread;
+
+// flag to kill animation
+static int die_anim_thread = 0;
+
+static ldisplay_animq_t animq;
+static pthread_mutex_t  animq_mutex;
+
+static int _ldisplay_update(void);
+static ldisplay_frame_t *_ldisplay_dequeue(void);
+static void _ldisplay_queue_prepend(ldisplay_frame_t *frame);
 
 /******************************************************************************/
 
@@ -87,10 +107,133 @@ static inline void _overlay(const uint32_t *foreground, uint32_t background[7], 
 
 /*******************************************************************************/
 
+static void _ldisplay_setBrightness(unsigned char brightness) {
+  if (brightness != LDISPLAY_NOCHANGE) {
+    if (brightness > LDISPLAY_BRIGHT) {
+      _brightness = LDISPLAY_BRIGHT;
+    } else {
+      _brightness = brightness;
+    }
+  }
+}
+
+static void _ldisplay_reset(void) {
+  int i=0;
+
+  for (i=0; i<7; ++i) {
+    _buffer[i] = 0;
+  }
+}
+
+static void _ldisplay_invert(void) {
+  int i=0;
+
+  for (i=0; i<7; ++i) {
+    _buffer[i] ^= 0xffffffff;
+  }
+}
+
+static void _ldisplay_set(ldisplay_buffer_t data) {
+  int i=0;
+
+  for (i=0; i<7; ++i) {
+    _buffer[i] = data[i];
+  }
+}
+
+static void _anim_frame_dispatch(ldisplay_frame_t *frame) {
+  switch (frame->type) {
+    case LDISPLAY_INVERT:
+      // invert the internal buffer
+      _ldisplay_setBrightness(frame->brightness);
+      _ldisplay_invert();
+      break;
+    case LDISPLAY_CLEAR:
+      // clear the internal buffer
+      _ldisplay_setBrightness(frame->brightness);
+      _ldisplay_reset();
+      break;
+    case LDISPLAY_SET:
+      // copy to internal buffer
+      _ldisplay_setBrightness(frame->brightness);
+      _ldisplay_set(frame->data.buffer);
+      break;
+    case LDISPLAY_LOOP:
+    case LDISPLAY_BRK_IF_LAST:
+    case LDISPLAY_NOOP:
+    default:
+      // do nothing
+      break;
+  }
+}
+
+static void *anim_thread_func(void *arg) {
+  struct timespec    ts;
+  pthread_mutex_t    mutex;
+  pthread_cond_t     cond;
+  ldisplay_frame_t  *cur_frame;
+
+  pthread_mutex_init(&mutex, NULL);
+  pthread_cond_init(&cond, NULL);
+
+  while (!die_anim_thread) {
+    (void)pthread_mutex_lock(&mutex);
+
+    cur_frame = _ldisplay_dequeue();
+    if (!cur_frame) {
+      cur_frame = calloc(1, sizeof(ldisplay_frame_t));
+      cur_frame->duration = MAX_FRAME_LENGTH_MS;
+      cur_frame->brightness = LDISPLAY_NOCHANGE;
+      cur_frame->type = LDISPLAY_NOOP;
+      printf("Creating fake NOOP frame with duration %d\n", cur_frame->duration);
+    }
+    if (cur_frame->duration > MAX_FRAME_LENGTH_MS) {
+      cur_frame->duration -= MAX_FRAME_LENGTH_MS;
+      ldisplay_frame_t *tmp = calloc(1, sizeof(ldisplay_frame_t));
+      memcpy(tmp, cur_frame, sizeof(ldisplay_frame_t));
+      _ldisplay_queue_prepend(tmp);
+      cur_frame->duration = MAX_FRAME_LENGTH_MS;
+    }
+
+    // set up delay
+    int rc = 0;
+    do {
+      clock_gettime(CLOCK_REALTIME, &ts);
+      ts.tv_nsec += cur_frame->duration * 1e6; // ms -> ns
+      while (rc == 0) {
+        rc = pthread_cond_timedwait(&cond, &mutex, &ts);
+      }
+      if (rc == ETIMEDOUT) {
+        break;
+      }
+      printf("Redoing; tv_sec: %ld; tv_nsec: %ld\n", ts.tv_sec, ts.tv_nsec);
+    } while (rc == EINVAL);
+
+    // handle frame
+    _anim_frame_dispatch(cur_frame);
+
+    // update hardware from buffer
+    _ldisplay_update();
+
+    // free the current frame
+    free(cur_frame);
+    cur_frame = NULL;
+
+    (void)pthread_mutex_unlock(&mutex);
+  }
+
+  pthread_cond_destroy(&cond);
+  pthread_mutex_destroy(&mutex);
+
+  return 0;
+}
+
+
 
 // attempt to open the first device matching the VID/PID we have
 // assignes a usb_dev_handle to the device to the udev global var
 int ldisplay_init() {
+#ifndef NODEV
   struct usb_bus *bus;
   struct usb_device *dev;
 
@@ -122,8 +265,14 @@ int ldisplay_init() {
 					usleep(100);
 					usb_claim_interface(udev, 0);
 
+#else
+  printf("\033[H\033[2J");
+#endif
+          pthread_create(&anim_thread, NULL, &anim_thread_func, NULL);
+
           // done
 					return SUCCESS;
+#ifndef NODEV
 				} else {
 					usb_close(tdev);
 				}
@@ -132,42 +281,21 @@ int ldisplay_init() {
 	}
 
 	return ERR_INIT_NODEV;
+#endif
 }
 
-int ldisplay_reset() {
-  return ldisplay_setAll(0);
-}
-
-int ldisplay_setAll(int val) {
-  char msg[] = { _brightness, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
-
-  if (!val) {
-    int i;
-    for (i=2; i<8; ++i)
-      msg[i] |= 0xff;
-  }
-  for (msg[1]=0; msg[1]<7; msg[1]+=2) {
-    int ret;
-    if ((ret = _control_msg(msg, 8)) < 0) {
-      return ret;
-    }
-  }
-
-  return SUCCESS;
-}
-
-int ldisplay_setDisplay(uint32_t data[7]) {
+static int _ldisplay_update_hw(void) {
   unsigned char msg[] = { _brightness, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
 
   for (msg[1]=0; msg[1]<7; msg[1]+=2) {
     int i=0;
-    msg[4] = ~((data[msg[1]  ] & 0x00ffffff) >> 0x0d);
-    msg[3] = ~((data[msg[1]  ] & 0x0000ffff) >> 0x05);
-    msg[2] = ~((data[msg[1]  ] & 0x000000ff) << 0x03);
+    msg[4] = ~((_buffer[msg[1]  ] & 0x00ffffff) >> 0x0d);
+    msg[3] = ~((_buffer[msg[1]  ] & 0x0000ffff) >> 0x05);
+    msg[2] = ~((_buffer[msg[1]  ] & 0x000000ff) << 0x03);
     if (msg[1]<6) {
-      msg[7] = ~((data[msg[1]+1] & 0x00ffffff) >> 0x0d);
-      msg[6] = ~((data[msg[1]+1] & 0x0000ffff) >> 0x05);
-      msg[5] = ~((data[msg[1]+1] & 0x000000ff) << 0x03) | 0x07;
+      msg[7] = ~((_buffer[msg[1]+1] & 0x00ffffff) >> 0x0d);
+      msg[6] = ~((_buffer[msg[1]+1] & 0x0000ffff) >> 0x05);
+      msg[5] = ~((_buffer[msg[1]+1] & 0x000000ff) << 0x03) | 0x07;
     } else {
       msg[5] = 0;
       msg[6] = 0;
@@ -186,12 +314,152 @@ int ldisplay_setDisplay(uint32_t data[7]) {
   return SUCCESS;
 }
 
-int ldisplay_showTime(unsigned int time, int style) {
+static int _ldisplay_update_sim(void) {
+  int i, j;
+  char o;
+
+  switch (_brightness) {
+    case LDISPLAY_DIM   : o='o'; break;
+    case LDISPLAY_MEDIUM: o='*'; break;
+    case LDISPLAY_BRIGHT: o='#'; break;
+    default:              o='@'; break;
+  }
+
+  printf("\033[H");
+  for (i=0; i<7; ++i) {
+    for (j=21; j>=0; --j) {
+      printf( "%c", ((_buffer[i] >> j) & 0x1) ? o : ' ' );
+    }
+    printf("|\n");
+  }
+  for (j=21; j>=0; --j) {
+    printf("-");
+  }
+  printf("+\n");
+
+  static uint16_t updcount=0;
+  printf("%d\n", ++updcount);
+
+  return SUCCESS;
+}
+
+static int _ldisplay_update(void) {
+#ifndef NODEV
+  return _ldisplay_update_hw();
+#else
+  //return _ldisplay_update_sim();
+  return SUCCESS;
+#endif
+}
+
+
+/* ************************************************************************ */
+
+void ldisplay_enqueue(ldisplay_frame_t *frame) {
+  (void)pthread_mutex_lock(&animq_mutex);
+  if (animq.last) {
+    animq.last->next = frame;
+    animq.last = frame;
+  } else {
+    animq.first = frame;
+    animq.last = frame;
+  }
+  (void)pthread_mutex_unlock(&animq_mutex);
+}
+
+static void _ldisplay_queue_prepend(ldisplay_frame_t *frame) {
+  (void)pthread_mutex_lock(&animq_mutex);
+  if (animq.first) {
+    frame->next = animq.first;
+    animq.first = frame;
+  } else {
+    animq.first = frame;
+    animq.last = frame;
+  }
+  (void)pthread_mutex_unlock(&animq_mutex);
+}
+
+static ldisplay_frame_t *_ldisplay_dequeue(void) {
+  ldisplay_frame_t *cur;
+  (void)pthread_mutex_lock(&animq_mutex);
+  if (!animq.first) {
+    cur = NULL;
+  } else {
+    cur = animq.first;
+    if (animq.first == animq.last) {
+      animq.first = animq.last = NULL;
+    } else {
+      animq.first = animq.first->next;
+    }
+    printf("Dequeued frame type %d; duration %d\n", cur->type, cur->duration);
+  }
+  (void)pthread_mutex_unlock(&animq_mutex);
+  return cur;
+}
+
+/* ************************************************************************ */
+
+
+ldisplay_frame_t *_ldisplay_make_frame(unsigned char type, uint16_t duration, unsigned char brightness) {
+  ldisplay_frame_t *tmp = calloc(1, sizeof(ldisplay_frame_t));
+
+  tmp->duration = duration;
+  tmp->type = type;
+  tmp->brightness = brightness;
+
+  return tmp;
+}
+
+void ldisplay_reset(uint16_t duration) {
+  ldisplay_frame_t *frame = _ldisplay_make_frame(LDISPLAY_CLEAR, duration, LDISPLAY_NOCHANGE);
+  ldisplay_enqueue(frame);
+}
+
+void ldisplay_invert(uint16_t duration) {
+  ldisplay_frame_t *frame = _ldisplay_make_frame(LDISPLAY_INVERT, duration, LDISPLAY_NOCHANGE);
+  ldisplay_enqueue(frame);
+}
+
+void ldisplay_set(uint16_t duration, ldisplay_buffer_t buffer, unsigned char brightness) {
+  ldisplay_frame_t *frame = _ldisplay_make_frame(LDISPLAY_SET, duration, brightness);
+  memcpy(frame->data.buffer, buffer, sizeof(ldisplay_buffer_t));
+  ldisplay_enqueue(frame);
+}
+
+/*
+int ldisplay_setAll(int val) {
+  int i=0;
+
+  for (i=0; i<7; ++i) {
+    _buffer[i] = val ? 0xffffffff : 0;
+  }
+
+  return SUCCESS;
+}
+
+int ldisplay_setDisplay(uint32_t data[7]) {
+  int i=0;
+
+  for (i=0; i<7; ++i) {
+    _buffer[i] = data[i];
+  }
+
+  return SUCCESS;
+}
+
+void ldisplay_setBrightness(unsigned char brightness) {
+  if (brightness>2)
+    brightness=2;
+  _brightness = brightness;
+}
+*/
+
+int ldisplay_drawTime(ldisplay_buffer_t buffer, unsigned int time, int style) {
   if (time>9999 || style<0 || style>1) {
     return ERR_BAD_ARGS;
   }
 
-  uint32_t buffer[7] = {0};
+  CLEAR_BUFFER(buffer);
 
   _overlay(time_font_colon, buffer, 0, 0);
 
@@ -207,17 +475,11 @@ int ldisplay_showTime(unsigned int time, int style) {
     _overlay(time_font_digits[(time/1000)%10], buffer, -17, 0);
   }
 
-  return ldisplay_setDisplay(buffer);
+  return SUCCESS;
 }
 
-void ldisplay_setBrightness(unsigned char brightness) {
-  if (brightness>2)
-    brightness=2;
-  _brightness = brightness;
-}
-
-int ldisplay_showChars(const char chars[4], char offset) {
-  uint32_t buffer[7] = {0};
+int ldisplay_drawChars(ldisplay_buffer_t buffer, const char chars[4], char offset) {
+  CLEAR_BUFFER(buffer);
 
   _overlay(font_std_fixed_ascii[(unsigned)chars[0]], buffer, offset - 21, 0);
   _overlay(font_std_fixed_ascii[(unsigned)chars[1]], buffer, offset - 16, 0);
@@ -225,13 +487,16 @@ int ldisplay_showChars(const char chars[4], char offset) {
   _overlay(font_std_fixed_ascii[(unsigned)chars[3]], buffer, offset -  6, 0);
   //_overlay(font_std_fixed_ascii[(unsigned)chars[4]], buffer, offset);
 
-  return ldisplay_setDisplay(buffer);
+  return SUCCESS;
 }
 
 // clean up after finishing with the device
 void ldisplay_cleanup() {
 	if (!udev)
     return; // nothing to do
+
+  die_anim_thread = 1;
+  pthread_join(anim_thread, NULL);
 
 	// release the interface
 	usb_release_interface(udev,0);
