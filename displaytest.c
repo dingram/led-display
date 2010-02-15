@@ -27,7 +27,7 @@
 int canprint=0;
 
 void rprintf(char *msg) {
-  if (canprint) printf(msg);
+  if (canprint) printf("%s", msg);
 }
 
 // TODO: fix to use getopt library
@@ -58,7 +58,7 @@ int main(int argc, char *argv[]) {
     usleep(10000);
 
   // reset it to a known initial state
-  ldisplay_reset();
+  //ldisplay_reset();
 
   if (argc<2) {
     int32_t i;
@@ -184,15 +184,22 @@ int main(int argc, char *argv[]) {
         "=    ",
         "     "
       };
+      ldisplay_animq_t *myq = ldisplay_queue_new();
 
       int m=0;
+      ldisplay_buffer_t buffer = {0};
       for (m=0; m<31; m++) {
-        ldisplay_showChars(message[m],  6); usleep(100000);
-        ldisplay_showChars(message[m],  5); usleep(100000);
-        ldisplay_showChars(message[m],  4); usleep(100000);
-        ldisplay_showChars(message[m],  3); usleep(100000);
-        ldisplay_showChars(message[m],  2); usleep(100000);
+
+        ldisplay_drawChars(buffer, message[m],  6); ldisplay_set(100, buffer, LDISPLAY_NOCHANGE, myq);
+        ldisplay_drawChars(buffer, message[m],  5); ldisplay_set(100, buffer, LDISPLAY_NOCHANGE, myq);
+        ldisplay_drawChars(buffer, message[m],  4); ldisplay_set(100, buffer, LDISPLAY_NOCHANGE, myq);
+        ldisplay_drawChars(buffer, message[m],  3); ldisplay_set(100, buffer, LDISPLAY_NOCHANGE, myq);
+        ldisplay_drawChars(buffer, message[m],  2); ldisplay_set(100, buffer, LDISPLAY_NOCHANGE, myq);
       }
+
+
+      ldisplay_dump_queue(myq);
+      ldisplay_queue_free(myq);
     }
 
 #if 0
@@ -221,33 +228,33 @@ int main(int argc, char *argv[]) {
     }
 #endif
 
-    if (0) {
-      ldisplay_setBrightness(LDISPLAY_DIM);
-      printf("Current time (dim)\n");
-      int oldtime_int=0;
-      while (1) {
-        time_t t = time(NULL);
-        struct tm *curTime = localtime(&t);
-        int curtime_int = (100*curTime->tm_hour) + curTime->tm_min;
-        // check time again every few seconds
-        for (i=0; i<5; ++i) {
-          if (oldtime_int!=curtime_int)
-            ldisplay_setBrightness(LDISPLAY_BRIGHT);
-          ldisplay_showTime(curtime_int, 0);
-          usleep(100000);
-          if (oldtime_int!=curtime_int) {
-            oldtime_int = curtime_int;
-            ldisplay_setBrightness(LDISPLAY_DIM);
-          }
-          ldisplay_showTime(curtime_int, 0);
-          usleep(300000);
+#if 0
+    ldisplay_setBrightness(LDISPLAY_DIM);
+    printf("Current time (dim)\n");
+    int oldtime_int=0;
+    while (1) {
+      time_t t = time(NULL);
+      struct tm *curTime = localtime(&t);
+      int curtime_int = (100*curTime->tm_hour) + curTime->tm_min;
+      // check time again every few seconds
+      for (i=0; i<5; ++i) {
+        if (oldtime_int!=curtime_int)
+          ldisplay_setBrightness(LDISPLAY_BRIGHT);
+        ldisplay_showTime(curtime_int, 0);
+        usleep(100000);
+        if (oldtime_int!=curtime_int) {
+          oldtime_int = curtime_int;
+          ldisplay_setBrightness(LDISPLAY_DIM);
         }
+        ldisplay_showTime(curtime_int, 0);
+        usleep(300000);
       }
     }
+#endif
 
     usleep(500000);
 
-    ldisplay_reset();
+    //ldisplay_reset();
 
   } else {
     /*
