@@ -27,7 +27,7 @@
 static void sighandler(int sig) {
   // shut down cleanly
   printf("Cleaning up...\n");
-  ldisplay_reset();
+  //ldisplay_reset(0);
 	ldisplay_cleanup();
   exit(EXIT_SUCCESS);
 }
@@ -101,14 +101,11 @@ int main(int argc, char *argv[]) {
   sigaction(SIGINT, &sigact, NULL);
 
   // reset it to a known initial state
-  if ((ret = ldisplay_reset())) {
-    fprintf(stderr, "\033[1;31mDevice failed to reset: %d\033[0m\n", ret);
-    ldisplay_cleanup();
-    return 1;
-  }
+  ldisplay_reset(0);
 
-  ldisplay_setBrightness(LDISPLAY_DIM);
   int oldtime_int=0;
+  ldisplay_buffer_t buffer = {0};
+  struct timespec ts = {1, 0};
   while (1) {
     time_t t = time(NULL);
     struct tm *curTime = localtime(&t);
@@ -116,31 +113,18 @@ int main(int argc, char *argv[]) {
     // check time again every few seconds
     int i=0;
 
-    for (i=0; i<5; ++i) {
-      if (opt_flicker && oldtime_int!=curtime_int)
-        ldisplay_setBrightness(LDISPLAY_BRIGHT);
-      ret = ldisplay_showTime(curtime_int, 0);
-      if (ret) {
-        fprintf(stderr, "\033[1;31mDevice failed to respond: %d\033[0m\n", ret);
-        ldisplay_cleanup();
-        return 1;
-      }
-      usleep(100000);
-      if (oldtime_int!=curtime_int) {
-        oldtime_int = curtime_int;
-        ldisplay_setBrightness(LDISPLAY_DIM);
-      }
-      ret = ldisplay_showTime(curtime_int, 0);
-      if (ret) {
-        fprintf(stderr, "\033[1;31mDevice failed to respond: %d\033[0m\n", ret);
-        ldisplay_cleanup();
-        return 1;
-      }
-      usleep(300000);
+    if (oldtime_int != curtime_int) {
+      ldisplay_drawTime(buffer, curtime_int, 0);
+
+      if (opt_flicker)
+        ldisplay_set(100, buffer, LDISPLAY_BRIGHT);
+      ldisplay_set(100, buffer, LDISPLAY_DIM);
+      oldtime_int = curtime_int;
     }
+    nanosleep(&ts, NULL);
   }
 
-  ldisplay_reset();
+  //ldisplay_reset();
 
 	ldisplay_cleanup();
 
