@@ -45,7 +45,6 @@ static void usage(char *progname) {
 int main(int argc, char *argv[]) {
   // parse arguments
   int opt_flicker = 1;
-  int ret;
 
   {
     struct option long_options[] = {
@@ -101,7 +100,7 @@ int main(int argc, char *argv[]) {
   sigaction(SIGINT, &sigact, NULL);
 
   // reset it to a known initial state
-  ldisplay_reset(0);
+  //ldisplay_reset(0, NULL);
 
   int oldtime_int=0;
   ldisplay_buffer_t buffer = {0};
@@ -111,14 +110,13 @@ int main(int argc, char *argv[]) {
     struct tm *curTime = localtime(&t);
     int curtime_int = (100*curTime->tm_hour) + curTime->tm_min;
     // check time again every few seconds
-    int i=0;
 
     if (oldtime_int != curtime_int) {
       ldisplay_drawTime(buffer, curtime_int, 0);
 
       if (opt_flicker)
-        ldisplay_set(100, buffer, LDISPLAY_BRIGHT);
-      ldisplay_set(100, buffer, LDISPLAY_DIM);
+        ldisplay_set(100, buffer, LDISPLAY_BRIGHT, NULL);
+      ldisplay_set(100, buffer, LDISPLAY_DIM, NULL);
       oldtime_int = curtime_int;
     }
     nanosleep(&ts, NULL);
