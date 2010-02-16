@@ -463,12 +463,12 @@ static int _ldisplay_update_sim(void) {
 }
 
 static int _ldisplay_update(void) {
-#ifndef NODEV
-  return _ldisplay_update_hw();
-#else
-  //return _ldisplay_update_sim();
-  return SUCCESS;
-#endif
+  if (udev) {
+    return _ldisplay_update_hw();
+  } else {
+    return _ldisplay_update_sim();
+    return SUCCESS;
+  }
 }
 
 
