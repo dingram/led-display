@@ -208,6 +208,52 @@ void ldisplay_dump_frame(ldisplay_frame_t *frame) {
   }
 }
 
+static void _animsleep(uint16_t ms, pthread_mutex_t *mutex, pthread_cond_t *cond) {
+  struct timespec ts;
+  int created_mutex = 0;
+  int created_cond = 0;
+  int rc = 0;
+
+  if (!mutex) {
+    created_mutex=1;
+    mutex = calloc(1, sizeof(pthread_mutex_t));
+    pthread_mutex_init(mutex, NULL);
+    (void)pthread_mutex_lock(mutex);
+  }
+  if (!cond) {
+    created_cond=1;
+    cond = calloc(1, sizeof(pthread_cond_t));
+    pthread_cond_init(cond, NULL);
+  }
+
+  do {
+    clock_gettime(CLOCK_REALTIME, &ts);
+    ts.tv_nsec += ms * 1e6; // ms -> ns
+    if (ts.tv_nsec >= 1000000000L) {
+      ++ts.tv_sec;
+      ts.tv_nsec -= 1000000000L;
+    }
+    while (rc == 0) {
+      rc = pthread_cond_timedwait(cond, mutex, &ts);
+    }
+    if (rc == ETIMEDOUT) {
+      break;
+    }
+  } while (0/*rc == EINVAL*/);
+
+  if (created_cond) {
+    created_cond=0;
+    pthread_cond_destroy(cond);
+    free(cond);
+  }
+  if (created_mutex) {
+    created_mutex=0;
+    (void)pthread_mutex_unlock(mutex);
+    pthread_mutex_destroy(mutex);
+    free(mutex);
+  }
+}
+
 static void _anim_frame_dispatch(ldisplay_frame_t *frame) {
   switch (frame->type) {
     case LDISPLAY_INVERT:
@@ -235,7 +281,6 @@ static void _anim_frame_dispatch(ldisplay_frame_t *frame) {
 }
 
 static void *anim_thread_func(void *arg) {
-  struct timespec    ts;
   pthread_mutex_t    mutex;
   pthread_cond_t     cond;
   ldisplay_frame_t  *cur_frame;
@@ -243,49 +288,35 @@ static void *anim_thread_func(void *arg) {
   pthread_mutex_init(&mutex, NULL);
   pthread_cond_init(&cond, NULL);
 
+  uint16_t delay = MAX_FRAME_LENGTH_MS;
   while (!die_anim_thread) {
+    delay = MAX_FRAME_LENGTH_MS;
+
     (void)pthread_mutex_lock(&mutex);
 
     cur_frame = _ldisplay_dequeue();
-    if (!cur_frame) {
-      cur_frame = calloc(1, sizeof(ldisplay_frame_t));
-      cur_frame->duration = MAX_FRAME_LENGTH_MS;
-      cur_frame->brightness = LDISPLAY_NOCHANGE;
-      cur_frame->type = LDISPLAY_NOOP;
-      //printf("Creating fake NOOP frame with duration %d\n", cur_frame->duration);
-    }
-    if (cur_frame->duration > MAX_FRAME_LENGTH_MS) {
-      ldisplay_frame_t *tmp = ldisplay_framedup(cur_frame);
-      tmp->duration -= MAX_FRAME_LENGTH_MS;
-      cur_frame->duration = MAX_FRAME_LENGTH_MS;
-      ldisplay_queue_prepend(tmp, NULL);
-    }
-
-    // set up delay
-    int rc = 0;
-    do {
-      clock_gettime(CLOCK_REALTIME, &ts);
-      ts.tv_nsec += cur_frame->duration * 1e6; // ms -> ns
-      while (rc == 0) {
-        rc = pthread_cond_timedwait(&cond, &mutex, &ts);
+    if (cur_frame) {
+      if (cur_frame->duration > MAX_FRAME_LENGTH_MS) {
+        ldisplay_frame_t *tmp = ldisplay_framedup(cur_frame);
+        tmp->duration -= MAX_FRAME_LENGTH_MS;
+        ldisplay_queue_prepend(tmp, NULL);
+      } else {
+        delay = cur_frame->duration;
       }
-      if (rc == ETIMEDOUT) {
-        break;
-      }
-      //printf("Redoing; tv_sec: %ld; tv_nsec: %ld\n", ts.tv_sec, ts.tv_nsec);
-      //(void)pthread_mutex_unlock(&mutex);
-      //(void)pthread_mutex_lock(&mutex);
-    } while (0/*rc == EINVAL*/);
 
-    // handle frame
-    _anim_frame_dispatch(cur_frame);
+      // handle frame
+      _anim_frame_dispatch(cur_frame);
+
+      // free the current frame
+      free(cur_frame);
+      cur_frame = NULL;
+    }
 
     // update hardware from buffer
     _ldisplay_update();
 
-    // free the current frame
-    free(cur_frame);
-    cur_frame = NULL;
+    // wait
+    _animsleep(delay, &mutex, &cond);
 
     (void)pthread_mutex_unlock(&mutex);
   }
@@ -557,7 +588,6 @@ static ldisplay_frame_t *_ldisplay_dequeue(void) {
     } else {
       animq.first = animq.first->next;
     }
-    //printf("Dequeued frame type %d; duration %d\n", cur->type, cur->duration);
   }
   (void)pthread_mutex_unlock(&animq_mutex);
   return cur;

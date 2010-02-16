@@ -86,23 +86,24 @@ void ldisplay_dump_queue(ldisplay_animq_t *queue);
 void ldisplay_dump_frame(ldisplay_frame_t *frame);
 
 
-void ldisplay_enqueue(ldisplay_frame_t *frame, ldisplay_animq_t *queue);
+ldisplay_frame_t *ldisplay_frame_new(unsigned char type, uint16_t duration, unsigned char brightness);
+ldisplay_frame_t *ldisplay_framedup(ldisplay_frame_t *frame);
+// free the given frame
+void ldisplay_frame_free(ldisplay_frame_t *frame);
 
+ldisplay_animq_t *ldisplay_queue_new();
+// free the given queue and all of its frames
+void ldisplay_queue_free(ldisplay_animq_t *queue);
+
+
+void ldisplay_enqueue(ldisplay_frame_t *frame, ldisplay_animq_t *queue);
 void ldisplay_queue_prepend(ldisplay_frame_t *frame, ldisplay_animq_t *queue);
 
 // move frames from "additional" onto end of "main"
 void ldisplay_queue_concat(ldisplay_animq_t *main, ldisplay_animq_t *additional);
 
-ldisplay_frame_t *ldisplay_framedup(ldisplay_frame_t *frame);
-
 // copy frames from "additional" onto end of "main"
 void ldisplay_queue_dupconcat(ldisplay_animq_t *main, ldisplay_animq_t *additional);
-
-// free the given frame
-void ldisplay_frame_free(ldisplay_frame_t *frame);
-
-// free the given queue and all of its frames
-void ldisplay_queue_free(ldisplay_animq_t *queue);
 
 
 int ldisplay_drawTime(ldisplay_buffer_t buffer, unsigned int time, int style);
