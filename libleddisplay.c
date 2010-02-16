@@ -52,7 +52,6 @@ static pthread_mutex_t  animq_mutex;
 
 static int _ldisplay_update(void);
 static ldisplay_frame_t *_ldisplay_dequeue(void);
-static void _ldisplay_queue_prepend(ldisplay_frame_t *frame);
 
 /******************************************************************************/
 
@@ -253,14 +252,13 @@ static void *anim_thread_func(void *arg) {
       cur_frame->duration = MAX_FRAME_LENGTH_MS;
       cur_frame->brightness = LDISPLAY_NOCHANGE;
       cur_frame->type = LDISPLAY_NOOP;
-      printf("Creating fake NOOP frame with duration %d\n", cur_frame->duration);
+      //printf("Creating fake NOOP frame with duration %d\n", cur_frame->duration);
     }
     if (cur_frame->duration > MAX_FRAME_LENGTH_MS) {
-      cur_frame->duration -= MAX_FRAME_LENGTH_MS;
-      ldisplay_frame_t *tmp = calloc(1, sizeof(ldisplay_frame_t));
-      memcpy(tmp, cur_frame, sizeof(ldisplay_frame_t));
-      _ldisplay_queue_prepend(tmp);
+      ldisplay_frame_t *tmp = ldisplay_framedup(cur_frame);
+      tmp->duration -= MAX_FRAME_LENGTH_MS;
       cur_frame->duration = MAX_FRAME_LENGTH_MS;
+      ldisplay_queue_prepend(tmp, NULL);
     }
 
     // set up delay
@@ -274,8 +272,10 @@ static void *anim_thread_func(void *arg) {
       if (rc == ETIMEDOUT) {
         break;
       }
-      printf("Redoing; tv_sec: %ld; tv_nsec: %ld\n", ts.tv_sec, ts.tv_nsec);
-    } while (rc == EINVAL);
+      //printf("Redoing; tv_sec: %ld; tv_nsec: %ld\n", ts.tv_sec, ts.tv_nsec);
+      //(void)pthread_mutex_unlock(&mutex);
+      //(void)pthread_mutex_lock(&mutex);
+    } while (0/*rc == EINVAL*/);
 
     // handle frame
     _anim_frame_dispatch(cur_frame);
@@ -423,28 +423,126 @@ static int _ldisplay_update(void) {
 
 /* ************************************************************************ */
 
-void ldisplay_enqueue(ldisplay_frame_t *frame) {
-  (void)pthread_mutex_lock(&animq_mutex);
-  if (animq.last) {
-    animq.last->next = frame;
-    animq.last = frame;
+void ldisplay_enqueue(ldisplay_frame_t *frame, ldisplay_animq_t *queue) {
+  if (!queue) {
+    (void)pthread_mutex_lock(&animq_mutex);
+    ldisplay_enqueue(frame, &animq);
+    (void)pthread_mutex_unlock(&animq_mutex);
   } else {
-    animq.first = frame;
-    animq.last = frame;
+    if (queue->last) {
+      queue->last->next = frame;
+      queue->last = frame;
+    } else {
+      queue->first = frame;
+      queue->last = frame;
+    }
   }
-  (void)pthread_mutex_unlock(&animq_mutex);
 }
 
-static void _ldisplay_queue_prepend(ldisplay_frame_t *frame) {
-  (void)pthread_mutex_lock(&animq_mutex);
-  if (animq.first) {
-    frame->next = animq.first;
-    animq.first = frame;
+void ldisplay_queue_prepend(ldisplay_frame_t *frame, ldisplay_animq_t *queue) {
+  if (!queue) {
+    (void)pthread_mutex_lock(&animq_mutex);
+    ldisplay_queue_prepend(frame, &animq);
+    (void)pthread_mutex_unlock(&animq_mutex);
   } else {
-    animq.first = frame;
-    animq.last = frame;
+    if (queue->first) {
+      frame->next = queue->first;
+      queue->first = frame;
+    } else {
+      queue->first = frame;
+      queue->last = frame;
+    }
   }
-  (void)pthread_mutex_unlock(&animq_mutex);
+}
+
+// move frames from "additional" onto end of "main"
+void ldisplay_queue_concat(ldisplay_animq_t *main, ldisplay_animq_t *additional) {
+  if (!main) {
+    (void)pthread_mutex_lock(&animq_mutex);
+    ldisplay_queue_concat(&animq, additional);
+    (void)pthread_mutex_unlock(&animq_mutex);
+  } else {
+    if (main->first && additional->first) {
+      main->last->next = additional->first;
+      main->last = additional->last;
+    } else if (additional->first) {
+      main->first = additional->first;
+      main->last = additional->last;
+    }
+    additional->first = NULL;
+    additional->last  = NULL;
+  }
+}
+
+ldisplay_frame_t *ldisplay_framedup(ldisplay_frame_t *frame) {
+  if (!frame) {
+    return NULL;
+  }
+
+  ldisplay_frame_t *ret;
+  ret = malloc(sizeof(ldisplay_frame_t));
+  if (!ret) {
+    return NULL;
+  }
+
+  memcpy(ret, frame, sizeof(ldisplay_frame_t));
+
+  return ret;
+}
+
+// copy frames from "additional" onto end of "main"
+void ldisplay_queue_dupconcat(ldisplay_animq_t *main, ldisplay_animq_t *additional) {
+  if (!main) {
+    (void)pthread_mutex_lock(&animq_mutex);
+    ldisplay_queue_concat(&animq, additional);
+    (void)pthread_mutex_unlock(&animq_mutex);
+  } else {
+    ldisplay_frame_t *curframe = additional->first;
+    while (curframe) {
+      ldisplay_frame_t *tmpframe = ldisplay_framedup(curframe);
+      tmpframe->next = NULL;
+      ldisplay_enqueue(tmpframe, main);
+      curframe = curframe->next;
+    }
+    if (main->first && additional->first) {
+      main->last->next = additional->first;
+      main->last = additional->last;
+    } else if (additional->first) {
+      main->first = additional->first;
+      main->last = additional->last;
+    }
+    additional->first = NULL;
+    additional->last  = NULL;
+  }
+}
+
+// free the given frame
+void ldisplay_frame_free(ldisplay_frame_t *frame) {
+  if (!frame) {
+    return;
+  }
+  ldisplay_frame_t *next = frame->next;
+  if (frame->type == LDISPLAY_LOOP) {
+    if (frame->data.loop.queue) {
+      ldisplay_queue_free(frame->data.loop.queue);
+    }
+  }
+  free(frame);
+  ldisplay_frame_free(next);
+}
+
+// free the given queue and all of its frames
+void ldisplay_queue_free(ldisplay_animq_t *queue) {
+  if (!queue->first) {
+    // empty queue; nothing to free
+    return;
+  }
+  // free the frame data
+  ldisplay_frame_free(queue->first);
+  queue->first = NULL;
+  queue->last = NULL;
+  // free the queue pointer itself
+  free(queue);
 }
 
 static ldisplay_frame_t *_ldisplay_dequeue(void) {
@@ -459,7 +557,7 @@ static ldisplay_frame_t *_ldisplay_dequeue(void) {
     } else {
       animq.first = animq.first->next;
     }
-    printf("Dequeued frame type %d; duration %d\n", cur->type, cur->duration);
+    //printf("Dequeued frame type %d; duration %d\n", cur->type, cur->duration);
   }
   (void)pthread_mutex_unlock(&animq_mutex);
   return cur;
@@ -468,7 +566,13 @@ static ldisplay_frame_t *_ldisplay_dequeue(void) {
 /* ************************************************************************ */
 
 
-ldisplay_frame_t *_ldisplay_make_frame(unsigned char type, uint16_t duration, unsigned char brightness) {
+ldisplay_animq_t *ldisplay_queue_new() {
+  ldisplay_animq_t *tmp = calloc(1, sizeof(ldisplay_animq_t));
+
+  return tmp;
+}
+
+ldisplay_frame_t *ldisplay_frame_new(unsigned char type, uint16_t duration, unsigned char brightness) {
   ldisplay_frame_t *tmp = calloc(1, sizeof(ldisplay_frame_t));
 
   tmp->duration = duration;
@@ -478,49 +582,26 @@ ldisplay_frame_t *_ldisplay_make_frame(unsigned char type, uint16_t duration, un
   return tmp;
 }
 
-void ldisplay_reset(uint16_t duration) {
-  ldisplay_frame_t *frame = _ldisplay_make_frame(LDISPLAY_CLEAR, duration, LDISPLAY_NOCHANGE);
-  ldisplay_enqueue(frame);
-}
-
-void ldisplay_invert(uint16_t duration) {
-  ldisplay_frame_t *frame = _ldisplay_make_frame(LDISPLAY_INVERT, duration, LDISPLAY_NOCHANGE);
-  ldisplay_enqueue(frame);
-}
-
-void ldisplay_set(uint16_t duration, ldisplay_buffer_t buffer, unsigned char brightness) {
-  ldisplay_frame_t *frame = _ldisplay_make_frame(LDISPLAY_SET, duration, brightness);
+void ldisplay_frame_setBuffer(ldisplay_frame_t *frame, ldisplay_buffer_t buffer) {
   memcpy(frame->data.buffer, buffer, sizeof(ldisplay_buffer_t));
-  ldisplay_enqueue(frame);
 }
 
-/*
-int ldisplay_setAll(int val) {
-  int i=0;
-
-  for (i=0; i<7; ++i) {
-    _buffer[i] = val ? 0xffffffff : 0;
-  }
-
-  return SUCCESS;
+void ldisplay_reset(uint16_t duration, ldisplay_animq_t *queue) {
+  ldisplay_frame_t *frame = ldisplay_frame_new(LDISPLAY_CLEAR, duration, LDISPLAY_NOCHANGE);
+  ldisplay_enqueue(frame, queue);
 }
 
-int ldisplay_setDisplay(uint32_t data[7]) {
-  int i=0;
-
-  for (i=0; i<7; ++i) {
-    _buffer[i] = data[i];
-  }
-
-  return SUCCESS;
+void ldisplay_invert(uint16_t duration, ldisplay_animq_t *queue) {
+  ldisplay_frame_t *frame = ldisplay_frame_new(LDISPLAY_INVERT, duration, LDISPLAY_NOCHANGE);
+  ldisplay_enqueue(frame, queue);
 }
 
-void ldisplay_setBrightness(unsigned char brightness) {
-  if (brightness>2)
-    brightness=2;
-  _brightness = brightness;
+void ldisplay_set(uint16_t duration, ldisplay_buffer_t buffer, unsigned char brightness, ldisplay_animq_t *queue) {
+  ldisplay_frame_t *frame = ldisplay_frame_new(LDISPLAY_SET, duration, brightness);
+  ldisplay_frame_setBuffer(frame, buffer);
+  ldisplay_enqueue(frame, queue);
 }
-*/
+
 
 int ldisplay_drawTime(ldisplay_buffer_t buffer, unsigned int time, int style) {
   if (time>9999 || style<0 || style>1) {
@@ -553,7 +634,7 @@ int ldisplay_drawChars(ldisplay_buffer_t buffer, const char chars[4], char offse
   _overlay(font_std_fixed_ascii[(unsigned)chars[1]], buffer, offset - 16, 0);
   _overlay(font_std_fixed_ascii[(unsigned)chars[2]], buffer, offset - 11, 0);
   _overlay(font_std_fixed_ascii[(unsigned)chars[3]], buffer, offset -  6, 0);
-  //_overlay(font_std_fixed_ascii[(unsigned)chars[4]], buffer, offset);
+  _overlay(font_std_fixed_ascii[(unsigned)chars[4]], buffer, offset -  1, 0);
 
   return SUCCESS;
 }

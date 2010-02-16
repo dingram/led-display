@@ -77,24 +77,37 @@ typedef struct ldisplay_frame ldisplay_frame_t;
 // Returns 0 on success, 1 if device not found.
 int ldisplay_init();
 
-void ldisplay_reset(uint16_t duration);
-
-void ldisplay_invert(uint16_t duration);
-
-void ldisplay_set(uint16_t duration, ldisplay_buffer_t buffer, unsigned char brightness);
+void ldisplay_reset(uint16_t duration, ldisplay_animq_t *queue);
+void ldisplay_invert(uint16_t duration, ldisplay_animq_t *queue);
+void ldisplay_set(uint16_t duration, ldisplay_buffer_t buffer, unsigned char brightness, ldisplay_animq_t *queue);
 
 
 void ldisplay_dump_queue(ldisplay_animq_t *queue);
 void ldisplay_dump_frame(ldisplay_frame_t *frame);
 
 
-//void ldisplay_setBrightness(unsigned char brightness);
+void ldisplay_enqueue(ldisplay_frame_t *frame, ldisplay_animq_t *queue);
+
+void ldisplay_queue_prepend(ldisplay_frame_t *frame, ldisplay_animq_t *queue);
+
+// move frames from "additional" onto end of "main"
+void ldisplay_queue_concat(ldisplay_animq_t *main, ldisplay_animq_t *additional);
+
+ldisplay_frame_t *ldisplay_framedup(ldisplay_frame_t *frame);
+
+// copy frames from "additional" onto end of "main"
+void ldisplay_queue_dupconcat(ldisplay_animq_t *main, ldisplay_animq_t *additional);
+
+// free the given frame
+void ldisplay_frame_free(ldisplay_frame_t *frame);
+
+// free the given queue and all of its frames
+void ldisplay_queue_free(ldisplay_animq_t *queue);
+
 
 int ldisplay_drawTime(ldisplay_buffer_t buffer, unsigned int time, int style);
-//int ldisplay_showTime(unsigned int time, int style);
-
 int ldisplay_drawChars(ldisplay_buffer_t buffer, const char chars[4], char offset);
-//int ldisplay_showChars(const char chars[4], char offset);
+
 
 // Cleanup function to release the interface.
 // MUST be called before exiting
