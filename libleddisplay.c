@@ -141,6 +141,74 @@ static void _ldisplay_set(ldisplay_buffer_t data) {
   }
 }
 
+void ldisplay_dump_queue(ldisplay_animq_t *queue) {
+  if (queue->first) {
+    ldisplay_dump_frame(queue->first);
+  } else {
+    printf("Empty queue\n");
+  }
+}
+
+void ldisplay_dump_frame(ldisplay_frame_t *frame) {
+  printf("Frame type: ");
+  switch (frame->type) {
+    case LDISPLAY_INVERT:
+      // invert the internal buffer
+      printf("INVERT\n");
+      printf("  duration:   %d\n", frame->duration);
+      printf("  brightness: %d\n", frame->brightness);
+      break;
+    case LDISPLAY_CLEAR:
+      // clear the internal buffer
+      printf("CLEAR\n");
+      printf("  duration:   %d\n", frame->duration);
+      printf("  brightness: %d\n", frame->brightness);
+      break;
+    case LDISPLAY_SET:
+      // copy to internal buffer
+      printf("SET\n");
+      printf("  duration:   %d\n", frame->duration);
+      printf("  brightness: %d\n", frame->brightness);
+      printf("  buffer:\n");
+
+      int i, j;
+      printf("    +");
+      for (j=21; j>=0; --j) {
+        printf("-");
+      }
+      printf("+\n");
+      for (i=0; i<7; ++i) {
+        printf("    |");
+        for (j=21; j>=0; --j) {
+          printf( "%c", ((frame->data.buffer[i] >> j) & 0x1) ? '#' : ' ' );
+        }
+        printf("|\n");
+      }
+      printf("    +");
+      for (j=21; j>=0; --j) {
+        printf("-");
+      }
+      printf("+\n");
+      break;
+    case LDISPLAY_LOOP:
+      printf("LOOP\n");
+      printf("  iterations: %d\n", frame->data.loop.repeat_count);
+      break;
+    case LDISPLAY_BRK_IF_LAST:
+      printf("BRK_IF_LAST\n");
+      break;
+    case LDISPLAY_NOOP:
+      printf("NOOP\n");
+      printf("  duration: %d\n", frame->duration);
+    default:
+      printf("UNKNOWN (%d)\n", frame->type);
+      break;
+  }
+  if (frame->next) {
+    ldisplay_dump_frame(frame->next);
+  }
+}
+
 static void _anim_frame_dispatch(ldisplay_frame_t *frame) {
   switch (frame->type) {
     case LDISPLAY_INVERT:
@@ -503,17 +571,4 @@ void ldisplay_cleanup() {
 
 	// close the device
   usb_close(udev);
-}
-
-void ldisplay_dumpBuffer(uint32_t data[7]) {
-  int i, j;
-
-  printf("\n");
-  for (i=0; i<7; ++i) {
-    for (j=21; j>=0; --j) {
-      printf( ((data[i] >> j) & 0x1) ? "#" : "-" );
-    }
-    printf("\n");
-  }
-  printf("\n");
 }

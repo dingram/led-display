@@ -84,6 +84,10 @@ void ldisplay_invert(uint16_t duration);
 void ldisplay_set(uint16_t duration, ldisplay_buffer_t buffer, unsigned char brightness);
 
 
+void ldisplay_dump_queue(ldisplay_animq_t *queue);
+void ldisplay_dump_frame(ldisplay_frame_t *frame);
+
+
 //void ldisplay_setBrightness(unsigned char brightness);
 
 int ldisplay_drawTime(ldisplay_buffer_t buffer, unsigned int time, int style);
