@@ -18,7 +18,7 @@
 #ifndef LIBLEDDISPLAY_H
 #define LIBLEDDISPLAY_H
 
-#define NODEV
+#undef NODEV
 
 #include <stdint.h>
 
