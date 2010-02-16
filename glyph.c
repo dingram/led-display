@@ -8,9 +8,7 @@
 
 #define DEBUG 1
 
-#define MAX_UPDATE_INTERVAL 400000
-#define UPDATE_INTERVAL     250000
-#define CALCULATE_UPDATE(t) (4 * t)
+#define FRAME_DURATION  1500
 
 int main(int argc, char *argv[]) {
 
@@ -34,7 +32,7 @@ int main(int argc, char *argv[]) {
   printf("Resetting...\n");
 
   // reset it to a known initial state
-  ldisplay_reset();
+  //ldisplay_reset();
 
   ldisplay_buffer_t frames[18] = {
     { // Hollow Diamond
@@ -201,21 +199,16 @@ int main(int argc, char *argv[]) {
     },
   };
 
-  ldisplay_setBrightness(LDISPLAY_BRIGHT);
+  //ldisplay_setBrightness(LDISPLAY_BRIGHT);
   printf("Displaying...\n");
 
   int i;
   for (i = 0; i < sizeof(frames)/sizeof(ldisplay_buffer_t); i++) {
-    int j = CALCULATE_UPDATE(1.5);
-    while (j) {
-      ldisplay_setDisplay(frames[i]);
-      usleep(UPDATE_INTERVAL);
-      --j;
-    }
+    ldisplay_set(FRAME_DURATION, frames[i], LDISPLAY_BRIGHT, NULL);
   }
 
-  usleep(500000);
-  ldisplay_reset();
+  ldisplay_wait_for_anim();
+  ldisplay_reset(10, NULL);
   printf("Cleaning up...\n");
   ldisplay_cleanup();
   printf("Done.\n");
