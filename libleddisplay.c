@@ -50,8 +50,10 @@ static int die_anim_thread = 0;
 static ldisplay_animq_t animq;
 static pthread_mutex_t  animq_mutex;
 
-static int _ldisplay_update(void);
+static int               _ldisplay_update(void);
 static ldisplay_frame_t *_ldisplay_dequeue(void);
+
+static pthread_once_t thread_init_once = PTHREAD_ONCE_INIT;
 
 /******************************************************************************/
 
@@ -327,6 +329,9 @@ static void *anim_thread_func(void *arg) {
   return 0;
 }
 
+static void anim_thread_init(void) {
+  pthread_create(&anim_thread, NULL, &anim_thread_func, NULL);
+}
 
 
 // attempt to open the first device matching the VID/PID we have
@@ -367,7 +372,7 @@ int ldisplay_init() {
 #else
   printf("\033[H\033[2J");
 #endif
-          pthread_create(&anim_thread, NULL, &anim_thread_func, NULL);
+          pthread_once(&thread_init_once, anim_thread_init);
 
           // done
 					return SUCCESS;
