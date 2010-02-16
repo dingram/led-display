@@ -53,6 +53,10 @@ static pthread_mutex_t  animq_mutex;
 static int               _ldisplay_update(void);
 static ldisplay_frame_t *_ldisplay_dequeue(void);
 
+static int             end_of_anim_queue = 0;
+static pthread_mutex_t eoq_mutex;
+static pthread_cond_t  eoq_cond;
+
 static pthread_once_t thread_init_once = PTHREAD_ONCE_INIT;
 
 /******************************************************************************/
@@ -312,6 +316,15 @@ static void *anim_thread_func(void *arg) {
       // free the current frame
       free(cur_frame);
       cur_frame = NULL;
+
+    } else {
+      // end of animation queue
+      pthread_mutex_lock(&eoq_mutex);
+      if (!end_of_anim_queue) {
+        end_of_anim_queue = 1;
+        pthread_cond_broadcast(&eoq_cond);
+      }
+      pthread_mutex_unlock(&eoq_mutex);
     }
 
     // update hardware from buffer
@@ -330,6 +343,8 @@ static void *anim_thread_func(void *arg) {
 }
 
 static void anim_thread_init(void) {
+  pthread_mutex_init(&eoq_mutex, NULL);
+  pthread_cond_init(&eoq_cond, NULL);
   pthread_create(&anim_thread, NULL, &anim_thread_func, NULL);
 }
 
@@ -459,10 +474,21 @@ static int _ldisplay_update(void) {
 
 /* ************************************************************************ */
 
+void ldisplay_wait_for_anim() {
+  pthread_mutex_lock(&eoq_mutex);
+  while (!end_of_anim_queue) {
+    pthread_cond_wait(&eoq_cond, &eoq_mutex);
+  }
+  pthread_mutex_unlock(&eoq_mutex);
+}
+
 void ldisplay_enqueue(ldisplay_frame_t *frame, ldisplay_animq_t *queue) {
   if (!queue) {
     (void)pthread_mutex_lock(&animq_mutex);
+    pthread_mutex_lock(&eoq_mutex);
     ldisplay_enqueue(frame, &animq);
+    end_of_anim_queue = 0;
+    pthread_mutex_unlock(&eoq_mutex);
     (void)pthread_mutex_unlock(&animq_mutex);
   } else {
     if (queue->last) {
@@ -478,7 +504,10 @@ void ldisplay_enqueue(ldisplay_frame_t *frame, ldisplay_animq_t *queue) {
 void ldisplay_queue_prepend(ldisplay_frame_t *frame, ldisplay_animq_t *queue) {
   if (!queue) {
     (void)pthread_mutex_lock(&animq_mutex);
+    pthread_mutex_lock(&eoq_mutex);
     ldisplay_queue_prepend(frame, &animq);
+    end_of_anim_queue = 0;
+    pthread_mutex_unlock(&eoq_mutex);
     (void)pthread_mutex_unlock(&animq_mutex);
   } else {
     if (queue->first) {
@@ -495,7 +524,10 @@ void ldisplay_queue_prepend(ldisplay_frame_t *frame, ldisplay_animq_t *queue) {
 void ldisplay_queue_concat(ldisplay_animq_t *main, ldisplay_animq_t *additional) {
   if (!main) {
     (void)pthread_mutex_lock(&animq_mutex);
+    pthread_mutex_lock(&eoq_mutex);
     ldisplay_queue_concat(&animq, additional);
+    end_of_anim_queue = 0;
+    pthread_mutex_unlock(&eoq_mutex);
     (void)pthread_mutex_unlock(&animq_mutex);
   } else {
     if (main->first && additional->first) {

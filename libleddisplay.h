@@ -81,6 +81,9 @@ void ldisplay_reset(uint16_t duration, ldisplay_animq_t *queue);
 void ldisplay_invert(uint16_t duration, ldisplay_animq_t *queue);
 void ldisplay_set(uint16_t duration, ldisplay_buffer_t buffer, unsigned char brightness, ldisplay_animq_t *queue);
 
+// wait until animation queue ends
+void ldisplay_wait_for_anim();
+
 
 void ldisplay_dump_queue(ldisplay_animq_t *queue);
 void ldisplay_dump_frame(ldisplay_frame_t *frame);
