@@ -134,3 +134,16 @@ void ldisplay_queue_prepend(ldisplay_frame_t *frame, ldisplay_animq_t *queue) {
     }
   }
 }
+
+void ldisplay_queue_reverse(ldisplay_animq_t *queue) {
+  ldisplay_frame_t *last = NULL;
+  ldisplay_frame_t *cur  = queue->first;
+  while (cur) {
+    ldisplay_frame_t *next = cur->next;
+    cur->next = last;
+    last = cur;
+    cur = next;
+  }
+  queue->last = queue->first;
+  queue->first = last;
+}

@@ -108,6 +108,8 @@ void ldisplay_queue_concat(ldisplay_animq_t *main, ldisplay_animq_t *additional)
 // copy frames from "additional" onto end of "main"
 void ldisplay_queue_dupconcat(ldisplay_animq_t *main, ldisplay_animq_t *additional);
 
+void ldisplay_queue_reverse(ldisplay_animq_t *queue);
+
 
 int ldisplay_drawTime(ldisplay_buffer_t buffer, unsigned int time, int style);
 int ldisplay_drawChars(ldisplay_buffer_t buffer, const char chars[4], char offset);
