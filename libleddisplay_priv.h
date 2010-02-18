@@ -18,6 +18,8 @@
 #ifndef LIBLEDDISPLAY_PRIV_H
 #define LIBLEDDISPLAY_PRIV_H
 
+#define UINT_BUFFER_ROW(b,r) ((uint32_t*)(b))[(r)]
+
 #include <pthread.h>
 #include "libleddisplay.h"
 

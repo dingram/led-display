@@ -22,6 +22,9 @@
 
 #include <stdint.h>
 
+#define LDISPLAY_HEIGHT 7
+#define LDISPLAY_WIDTH  21
+
 // Generic return codes
 #define SUCCESS         0
 #define ERR_INIT_NODEV  1
@@ -72,6 +75,16 @@ typedef struct ldisplay_frame ldisplay_frame_t;
 #define LDISPLAY_LOOP         4
 #define LDISPLAY_BRK_IF_LAST  5
 
+#define LDISPLAY_COMBINE_REPLACE 0
+#define LDISPLAY_COMBINE_OR      1
+#define LDISPLAY_COMBINE_AND     2
+#define LDISPLAY_COMBINE_XOR     3
+
+#define LDISPLAY_DIRECTION_UP    0
+#define LDISPLAY_DIRECTION_DOWN  1
+#define LDISPLAY_DIRECTION_LEFT  2
+#define LDISPLAY_DIRECTION_RIGHT 3
+
 // Initialisation function to set up the connection to the device.
 // MUST be called before any others.
 // Returns 0 on success, 1 if device not found.
@@ -121,8 +134,11 @@ void ldisplay_cleanup();
 
 void ldisplay_dumpBuffer(uint32_t data[7]);
 
+void ldisplay_buffer_combine(const ldisplay_buffer_t foreground, ldisplay_buffer_t background, int xOff, int yOff, int mode);
+void ldisplay_buffer_scroll(ldisplay_buffer_t buffer, int direction, unsigned int distance);
+void ldisplay_buffer_clear(ldisplay_buffer_t buffer);
 
-#define CLEAR_BUFFER(b) memset((b), 0, 7*sizeof(uint32_t));
+#define CLEAR_BUFFER(b) memset((b), 0, sizeof(ldisplay_buffer_t));
 
 // 300ms max frame length
 #define MAX_FRAME_LENGTH_MS 300

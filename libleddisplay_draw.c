@@ -19,14 +19,19 @@
 #include <string.h>
 #include "libleddisplay_priv.h"
 
-// fonts
-#include "led_font_time.h"
-#include "led_font_std.h"
-
-static inline void _overlay(const uint32_t *foreground, uint32_t background[7], char xOff, char yOff) {
+void ldisplay_buffer_combine(const ldisplay_buffer_t foreground, ldisplay_buffer_t background, int xOff, int yOff, int mode) {
   int i;
   // index bounds checking
   if (yOff<-6 || yOff>6 || xOff<-20 || xOff>20) return;
+
+  // easy case
+  if (mode == LDISPLAY_COMBINE_REPLACE && xOff==0) {
+    for (i= (yOff>0) ? yOff : 0; i<7; ++i) {
+      if (i-yOff < 0 || i-yOff>6) continue;
+      ((uint32_t*)background)[i] = ((uint32_t*)foreground)[i-yOff];
+    }
+    return;
+  }
 
   if (xOff<0) {
     xOff = -xOff;
@@ -42,38 +47,40 @@ static inline void _overlay(const uint32_t *foreground, uint32_t background[7], 
   }
 }
 
-int ldisplay_drawTime(ldisplay_buffer_t buffer, unsigned int time, int style) {
-  if (time>9999 || style<0 || style>1) {
-    return ERR_BAD_ARGS;
+void ldisplay_buffer_scroll(ldisplay_buffer_t buffer, int direction, unsigned int distance) {
+  if (!distance) {
+    return;
   }
 
-  CLEAR_BUFFER(buffer);
+  int i=0;
 
-  _overlay(time_font_colon, buffer, 0, 0);
-
-  if (style) {
-    _overlay(time_segment_font_digits[(time     )%10], buffer,   0, 0);
-    _overlay(time_segment_font_digits[(time/10  )%10], buffer, - 5, 0);
-    _overlay(time_segment_font_digits[(time/100 )%10], buffer, -12, 0);
-    _overlay(time_segment_font_digits[(time/1000)%10], buffer, -17, 0);
-  } else {
-    _overlay(time_font_digits[(time     )%10], buffer,   0, 0);
-    _overlay(time_font_digits[(time/10  )%10], buffer, - 5, 0);
-    _overlay(time_font_digits[(time/100 )%10], buffer, -12, 0);
-    _overlay(time_font_digits[(time/1000)%10], buffer, -17, 0);
+  switch (direction) {
+    case LDISPLAY_DIRECTION_LEFT:
+      for (i=0; i<LDISPLAY_HEIGHT; ++i) {
+        ((uint32_t*)buffer)[i] <<= distance;
+      }
+      break;
+    case LDISPLAY_DIRECTION_RIGHT:
+      // right shift for unsigned int is logical
+      for (i=0; i<LDISPLAY_HEIGHT; ++i) {
+        ((uint32_t*)buffer)[i] >>= distance;
+      }
+      break;
+    case LDISPLAY_DIRECTION_UP:
+      for (i=0; i<LDISPLAY_HEIGHT; ++i) {
+        UINT_BUFFER_ROW(buffer, i) = (i+distance < LDISPLAY_HEIGHT) ? UINT_BUFFER_ROW(buffer, i+distance) : 0;
+      }
+      break;
+    case LDISPLAY_DIRECTION_DOWN:
+      for (i=LDISPLAY_HEIGHT-1; i>=0; --i) {
+        UINT_BUFFER_ROW(buffer, i) = (i-(signed int)distance >= 0) ? UINT_BUFFER_ROW(buffer, i-distance) : 0;
+      }
+      break;
+    default:
+      break;
   }
-
-  return SUCCESS;
 }
 
-int ldisplay_drawChars(ldisplay_buffer_t buffer, const char chars[4], char offset) {
-  CLEAR_BUFFER(buffer);
-
-  _overlay(font_std_fixed_ascii[(unsigned)chars[0]], buffer, offset - 21, 0);
-  _overlay(font_std_fixed_ascii[(unsigned)chars[1]], buffer, offset - 16, 0);
-  _overlay(font_std_fixed_ascii[(unsigned)chars[2]], buffer, offset - 11, 0);
-  _overlay(font_std_fixed_ascii[(unsigned)chars[3]], buffer, offset -  6, 0);
-  _overlay(font_std_fixed_ascii[(unsigned)chars[4]], buffer, offset -  1, 0);
-
-  return SUCCESS;
+void ldisplay_buffer_clear(ldisplay_buffer_t buffer) {
+  memset(buffer, 0, sizeof(ldisplay_buffer_t));
 }

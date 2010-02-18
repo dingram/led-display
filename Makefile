@@ -1,4 +1,4 @@
-CFILES = libleddisplay.c libleddisplay_queue.c libleddisplay_frame.c libleddisplay_anim.c libleddisplay_draw.c
+CFILES = libleddisplay.c libleddisplay_queue.c libleddisplay_frame.c libleddisplay_anim.c libleddisplay_draw.c libleddisplay_text.c
 HFILES = libleddisplay.h
 OFILES = $(CFILES:.c=.o)
 
