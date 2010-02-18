@@ -1,6 +1,7 @@
 /clock
 /glyph
 /displaytest
+/testprog
 /lib*.so*
 .*.sw?
 *.o
