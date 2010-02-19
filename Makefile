@@ -6,7 +6,8 @@ OFILES = $(CFILES:.c=.o)
 # CFLAGS = -fpic
 # For creating a library:
 # CFLAGS = -Wall -shared -W1,-soname,libleddisplay.so.1 -o libleddisplay.so.1.0.1 $(OFILES)
-CFLAGS = -Wall -fpic -lpthread -lrt
+#CFLAGS = -Wall -fpic -lpthread -lrt
+CFLAGS = -Wall -fpic
 
 .PHONY: all
 all: libleddisplay clock displaytest glyph testprog
