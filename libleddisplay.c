@@ -227,7 +227,6 @@ int _ldisplay_update(void) {
     return _ldisplay_update_hw();
   } else {
     return _ldisplay_update_sim();
-    return SUCCESS;
   }
 }
 

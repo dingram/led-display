@@ -38,6 +38,7 @@ testprog: libleddisplay.o testprog.o
 #displaytest: displaytest.o
 #	$(CC) displaytest.o -L. -lleddisplay -lusb -lc -o displaytest
 #
+
 libleddisplay: $(OFILES)
 	$(CC) $(OFILES) -shared -W1,-soname,libleddisplay.so.1 -o libleddisplay.so.1.0.1
 	/sbin/ldconfig -n .

@@ -18,8 +18,6 @@
 #ifndef LIBLEDDISPLAY_H
 #define LIBLEDDISPLAY_H
 
-#undef NODEV
-
 #include <stdint.h>
 
 #define LDISPLAY_HEIGHT 7
@@ -37,13 +35,28 @@
 
 typedef uint32_t ldisplay_buffer_t[7];
 
-typedef struct { uint32_t glyph[7]; unsigned char width; } ldisplay_var_char_t;
 typedef uint32_t ldisplay_fixed_char_t[7];
-typedef union { ldisplay_var_char_t var; ldisplay_fixed_char_t fixed; } ldisplay_char_t;
+typedef struct {
+  uint32_t glyph[7];
+  unsigned char width;
+} ldisplay_var_char_t;
+typedef union {
+  ldisplay_var_char_t var;
+  ldisplay_fixed_char_t fixed;
+} ldisplay_char_t;
 
-typedef struct { ldisplay_fixed_char_t *glyphs; unsigned char width; } ldisplay_fixed_font_t;
-typedef struct { ldisplay_var_char_t   *glyphs; unsigned char width; } ldisplay_var_font_t;
-typedef union { ldisplay_var_font_t var; ldisplay_fixed_font_t fixed; } ldisplay_font_t;
+typedef struct {
+  ldisplay_fixed_char_t *glyphs;
+  unsigned char width;
+} ldisplay_fixed_font_t;
+typedef struct {
+  ldisplay_var_char_t   *glyphs;
+  unsigned char width;
+} ldisplay_var_font_t;
+typedef union {
+  ldisplay_var_font_t var;
+  ldisplay_fixed_font_t fixed;
+} ldisplay_font_t;
 
 struct ldisplay_animq;
 struct ldisplay_frame {

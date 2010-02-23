@@ -23,7 +23,7 @@
 #include "led_font_time.h"
 #include "led_font_std.h"
 
-static inline void _overlay(const uint32_t *foreground, uint32_t background[7], char xOff, char yOff) {
+static inline void _overlay(const ldisplay_buffer_t foreground, ldisplay_buffer_t background, int xOff, int yOff) {
   int i;
   // index bounds checking
   if (yOff<-6 || yOff>6 || xOff<-20 || xOff>20) return;
