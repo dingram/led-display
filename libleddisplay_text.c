@@ -77,3 +77,46 @@ int ldisplay_drawChars(ldisplay_buffer_t buffer, const char chars[4], char offse
 
   return SUCCESS;
 }
+
+void ldisplay_scroll_char(ldisplay_animq_t *queue, ldisplay_buffer_t init_buffer, const char c, int fixed_font, int dir, uint16_t duration) {
+  ldisplay_buffer_t cur_buffer;
+  int            charwidth = fixed_font ? 6 /* fixed font char width */        :   font_std_var_ascii[(unsigned)c].width ;
+  ldisplay_buffer_t *glyph = fixed_font ? &(font_std_fixed_ascii[(unsigned)c]) : &(font_std_var_ascii[(unsigned)c].glyph);
+
+  ldisplay_buffer_copy(cur_buffer, init_buffer);
+
+  int i;
+  for (i=0; i<charwidth; ++i) {
+    ldisplay_buffer_scroll(cur_buffer, dir, 1);
+    _overlay(*glyph, cur_buffer, charwidth-i-1, 0);
+    ldisplay_set(duration, cur_buffer, LDISPLAY_NOCHANGE, queue);
+  }
+}
+
+void ldisplay_scroll_text(ldisplay_animq_t *queue, ldisplay_buffer_t init_buffer, const char *text, int fixed_font, int dir, uint16_t duration) {
+  ldisplay_buffer_t cur_buffer;
+  char *tmp = (char*)text;
+
+  ldisplay_buffer_copy(cur_buffer, init_buffer);
+
+  while (*tmp) {
+    ldisplay_scroll_char(queue, cur_buffer, *tmp, fixed_font, dir, duration);
+    ldisplay_buffer_copy(cur_buffer, queue->last->data.buffer);
+    ++tmp;
+  }
+}
+
+void ldisplay_scroll_to_blank(ldisplay_animq_t *queue, ldisplay_buffer_t init_buffer, int dir, uint16_t duration) {
+  if (ldisplay_buffer_blank(init_buffer)) {
+    return;
+  }
+
+  ldisplay_buffer_t cur_buffer;
+  ldisplay_buffer_copy(cur_buffer, init_buffer);
+
+  do {
+    ldisplay_buffer_scroll(cur_buffer, dir, 1);
+    ldisplay_set(duration, cur_buffer, LDISPLAY_NOCHANGE, queue);
+  } while (!ldisplay_buffer_blank(cur_buffer));
+}
+

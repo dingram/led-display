@@ -143,6 +143,10 @@ void ldisplay_queue_reverse(ldisplay_animq_t *queue);
 int ldisplay_drawTime(ldisplay_buffer_t buffer, unsigned int time, int style);
 int ldisplay_drawChars(ldisplay_buffer_t buffer, const char chars[4], char offset);
 
+void ldisplay_scroll_char(ldisplay_animq_t *queue, ldisplay_buffer_t init_buffer, const char c, int font, int dir, uint16_t duration);
+void ldisplay_scroll_text(ldisplay_animq_t *queue, ldisplay_buffer_t init_buffer, const char *text, int font, int dir, uint16_t duration);
+void ldisplay_scroll_to_blank(ldisplay_animq_t *queue, ldisplay_buffer_t init_buffer, int dir, uint16_t duration);
+
 
 // Cleanup function to release the interface.
 // MUST be called before exiting
