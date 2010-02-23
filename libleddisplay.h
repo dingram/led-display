@@ -103,9 +103,11 @@ typedef struct ldisplay_frame ldisplay_frame_t;
 // Returns 0 on success, 1 if device not found.
 int ldisplay_init();
 
+void ldisplay_noop(uint16_t duration, ldisplay_animq_t *queue);
 void ldisplay_reset(uint16_t duration, ldisplay_animq_t *queue);
 void ldisplay_invert(uint16_t duration, ldisplay_animq_t *queue);
 void ldisplay_set(uint16_t duration, ldisplay_buffer_t buffer, unsigned char brightness, ldisplay_animq_t *queue);
+void ldisplay_setBrightness(unsigned char brightness, ldisplay_animq_t *queue);
 
 // wait until animation queue ends
 void ldisplay_wait_for_anim();

@@ -128,6 +128,17 @@ void ldisplay_frame_setBuffer(ldisplay_frame_t *frame, ldisplay_buffer_t buffer)
   memcpy(frame->data.buffer, buffer, sizeof(ldisplay_buffer_t));
 }
 
+
+void ldisplay_noop(uint16_t duration, ldisplay_animq_t *queue) {
+  ldisplay_frame_t *frame = ldisplay_frame_new(LDISPLAY_NOOP, duration, LDISPLAY_NOCHANGE);
+  ldisplay_enqueue(frame, queue);
+}
+
+void ldisplay_setBrightness(unsigned char brightness, ldisplay_animq_t *queue) {
+  ldisplay_frame_t *frame = ldisplay_frame_new(LDISPLAY_NOOP, 0, brightness);
+  ldisplay_enqueue(frame, queue);
+}
+
 void ldisplay_reset(uint16_t duration, ldisplay_animq_t *queue) {
   ldisplay_frame_t *frame = ldisplay_frame_new(LDISPLAY_CLEAR, duration, LDISPLAY_NOCHANGE);
   ldisplay_enqueue(frame, queue);
