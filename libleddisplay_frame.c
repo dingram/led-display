@@ -22,6 +22,28 @@
 #include <pthread.h>
 #include "libleddisplay_priv.h"
 
+void ldisplay_dump_buffer(ldisplay_buffer_t buffer) {
+  int i, j;
+  FILE *out = stdout;
+  fprintf(out, "    +");
+  for (j=LDISPLAY_WIDTH; j>=0; --j) {
+    fprintf(out, "-");
+  }
+  fprintf(out, "+\n");
+  for (i=0; i<LDISPLAY_HEIGHT; ++i) {
+    fprintf(out, "    |");
+    for (j=LDISPLAY_WIDTH; j>=0; --j) {
+      fprintf(out,  "%c", ((buffer[i] >> j) & 0x1) ? '#' : ' ' );
+    }
+    fprintf(out, "|\n");
+  }
+  fprintf(out, "    +");
+  for (j=LDISPLAY_WIDTH; j>=0; --j) {
+    fprintf(out, "-");
+  }
+  fprintf(out, "+\n");
+}
+
 void ldisplay_dump_frame(ldisplay_frame_t *frame) {
   printf("Frame type: ");
   switch (frame->type) {
@@ -43,25 +65,7 @@ void ldisplay_dump_frame(ldisplay_frame_t *frame) {
       printf("  duration:   %d\n", frame->duration);
       printf("  brightness: %d\n", frame->brightness);
       printf("  buffer:\n");
-
-      int i, j;
-      printf("    +");
-      for (j=21; j>=0; --j) {
-        printf("-");
-      }
-      printf("+\n");
-      for (i=0; i<7; ++i) {
-        printf("    |");
-        for (j=21; j>=0; --j) {
-          printf( "%c", ((frame->data.buffer[i] >> j) & 0x1) ? '#' : ' ' );
-        }
-        printf("|\n");
-      }
-      printf("    +");
-      for (j=21; j>=0; --j) {
-        printf("-");
-      }
-      printf("+\n");
+      ldisplay_dump_buffer(frame->data.buffer);
       break;
     case LDISPLAY_LOOP:
       printf("LOOP\n");

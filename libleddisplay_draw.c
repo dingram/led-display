@@ -19,6 +19,16 @@
 #include <string.h>
 #include "libleddisplay_priv.h"
 
+int ldisplay_buffer_blank(const ldisplay_buffer_t buffer) {
+  int i=0;
+  for (i=0; i<LDISPLAY_HEIGHT; ++i) {
+    if (((uint32_t*)buffer)[i]) {
+      return 0;
+    }
+  }
+  return 1;
+}
+
 void ldisplay_buffer_combine(const ldisplay_buffer_t foreground, ldisplay_buffer_t background, int xOff, int yOff, int mode) {
   int i;
   // index bounds checking
@@ -83,4 +93,7 @@ void ldisplay_buffer_scroll(ldisplay_buffer_t buffer, int direction, unsigned in
 
 void ldisplay_buffer_clear(ldisplay_buffer_t buffer) {
   memset(buffer, 0, sizeof(ldisplay_buffer_t));
+}
+void ldisplay_buffer_copy(ldisplay_buffer_t dest, const ldisplay_buffer_t src) {
+  memcpy(dest, src, sizeof(ldisplay_buffer_t));
 }

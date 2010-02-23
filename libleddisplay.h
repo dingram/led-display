@@ -115,6 +115,7 @@ void ldisplay_wait_for_anim();
 
 void ldisplay_dump_queue(ldisplay_animq_t *queue);
 void ldisplay_dump_frame(ldisplay_frame_t *frame);
+void ldisplay_dump_buffer(ldisplay_buffer_t buffer);
 
 
 ldisplay_frame_t *ldisplay_frame_new(unsigned char type, uint16_t duration, unsigned char brightness);
@@ -152,6 +153,8 @@ void ldisplay_dumpBuffer(uint32_t data[7]);
 void ldisplay_buffer_combine(const ldisplay_buffer_t foreground, ldisplay_buffer_t background, int xOff, int yOff, int mode);
 void ldisplay_buffer_scroll(ldisplay_buffer_t buffer, int direction, unsigned int distance);
 void ldisplay_buffer_clear(ldisplay_buffer_t buffer);
+void ldisplay_buffer_copy(ldisplay_buffer_t dest, const ldisplay_buffer_t src);
+int  ldisplay_buffer_blank(const ldisplay_buffer_t buffer);
 
 #define CLEAR_BUFFER(b) memset((b), 0, sizeof(ldisplay_buffer_t));
 
