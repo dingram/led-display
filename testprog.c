@@ -33,6 +33,7 @@ int main(int argc, char *argv[]) {
     return 1;
   }
 
+  /*
   {
     ldisplay_buffer_clear(buf);
     ldisplay_set(100, buf, LDISPLAY_NOCHANGE, myq);
@@ -43,8 +44,9 @@ int main(int argc, char *argv[]) {
       ldisplay_buffer_scroll(buf, LDISPLAY_DIRECTION_LEFT, 1);
       ldisplay_set(100, buf, LDISPLAY_NOCHANGE, myq);
     }
-  }
+  } // */
 
+  /*
   {
     ldisplay_buffer_clear(buf);
     ldisplay_set(100, buf, LDISPLAY_NOCHANGE, myq);
@@ -55,8 +57,9 @@ int main(int argc, char *argv[]) {
       ldisplay_buffer_scroll(buf, LDISPLAY_DIRECTION_RIGHT, 1);
       ldisplay_set(100, buf, LDISPLAY_NOCHANGE, myq);
     }
-  }
+  } // */
 
+  /*
   {
     ldisplay_buffer_clear(buf);
     ldisplay_set(100, buf, LDISPLAY_NOCHANGE, myq);
@@ -67,8 +70,9 @@ int main(int argc, char *argv[]) {
       ldisplay_buffer_scroll(buf, LDISPLAY_DIRECTION_UP, 1);
       ldisplay_set(100, buf, LDISPLAY_NOCHANGE, myq);
     }
-  }
+  } // */
 
+  /*
   {
     ldisplay_buffer_clear(buf);
     ldisplay_set(100, buf, LDISPLAY_NOCHANGE, myq);
@@ -79,11 +83,52 @@ int main(int argc, char *argv[]) {
       ldisplay_buffer_scroll(buf, LDISPLAY_DIRECTION_DOWN, 1);
       ldisplay_set(100, buf, LDISPLAY_NOCHANGE, myq);
     }
-  }
+  } // */
+
+  //*
+  {
+    ldisplay_animq_t *text1 = ldisplay_queue_new();
+    ldisplay_buffer_clear(buf);
+    ldisplay_set(100, buf, LDISPLAY_NOCHANGE, text1);
+    ldisplay_scroll_text(text1, buf, "Hello, world!", 1, LDISPLAY_DIRECTION_LEFT, 100);
+    ldisplay_frame_t *lastframe = text1->last;
+    ldisplay_noop(500, text1);
+    ldisplay_scroll_to_blank(text1, lastframe->data.buffer, LDISPLAY_DIRECTION_UP, 100);
+
+    ldisplay_queue_concat(myq, text1);
+    ldisplay_queue_free(text1);
+
+
+    ldisplay_animq_t *text2 = ldisplay_queue_new();
+    ldisplay_buffer_clear(buf);
+    ldisplay_set(300, buf, LDISPLAY_NOCHANGE, text2);
+    ldisplay_scroll_text(text2, buf, "Hello, world!", 0, LDISPLAY_DIRECTION_LEFT, 100);
+    ldisplay_scroll_to_blank(text2, text2->last->data.buffer, LDISPLAY_DIRECTION_LEFT, 100);
+
+    ldisplay_queue_concat(myq, text2);
+    ldisplay_queue_free(text2);
+  } // */
+
+  /*
+  {
+    ldisplay_buffer_clear(buf);
+    ldisplay_set(100, buf, LDISPLAY_NOCHANGE, myq);
+    ldisplay_animq_t *text1 = ldisplay_scroll_text(buf, "Hello, world!", 1, LDISPLAY_DIRECTION_LEFT, 100);
+
+    ldisplay_queue_concat(myq, text1);
+    ldisplay_queue_free(text1);
+
+
+    ldisplay_buffer_clear(buf);
+    ldisplay_set(300, buf, LDISPLAY_NOCHANGE, myq);
+    ldisplay_animq_t *text2 = ldisplay_scroll_text(buf, "Hello, world!", 0, LDISPLAY_DIRECTION_LEFT, 100);
+
+    ldisplay_queue_concat(myq, text2);
+    ldisplay_queue_free(text2);
+  } // */
 
   //ldisplay_dump_queue(myq);
   ldisplay_queue_concat(NULL, myq);
-
   ldisplay_queue_free(myq);
 
   ldisplay_wait_for_anim();
